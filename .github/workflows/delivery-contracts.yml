@@ -1,0 +1,24 @@
+name: delivery-contracts
+
+# The snapshot script and the README are delivery surfaces, so their contracts
+# run on every push. These three files are chosen because they need no Stage 0
+# data: they pass on a fresh clone (integration cases skip themselves).
+on:
+  push:
+  pull_request:
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --quiet pytest pyyaml pandas
+      - run: >
+          python -m pytest
+          scripts/tests/test_public_snapshot.py
+          scripts/tests/test_readme_delivery.py
+          scripts/tests/test_explore_target.py
+          -q

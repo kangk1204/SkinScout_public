@@ -1,0 +1,1509 @@
+# =============================================================================
+# COSMAX v2 — Top-level Snakefile
+# =============================================================================
+# Loads config.yaml, includes per-stage rule files, and defines the all-target
+# entrypoint that dispatches by mode (comprehensive | fast | both).
+# -----------------------------------------------------------------------------
+
+import math
+import os
+import re
+import shlex
+import shutil
+from pathlib import Path
+from urllib.parse import urlparse
+
+configfile: "workflow/config.yaml"
+
+DOI_RE = re.compile(r"^10\.\d{4,9}/[-._;()/:A-Z0-9]+$", re.IGNORECASE)
+RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+
+
+def config_bool(value, default=False, name=None):
+    """Parse config booleans from YAML or CLI overrides."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "y", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "n", "off"}:
+            return False
+    label = f" '{name}'" if name else ""
+    raise ValueError(
+        f"Config boolean{label} must be one of true/false, yes/no, on/off, "
+        f"or 1/0: {value!r}"
+    )
+
+
+def config_float(value, name, default, minimum=None, maximum=None):
+    """Parse numeric config values from YAML or CLI overrides."""
+    if value is None:
+        value = default
+    if isinstance(value, bool):
+        raise ValueError(
+            f"Config value '{name}' must be a finite number in "
+            f"[{minimum}, {maximum}]: {value!r}"
+        )
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(
+            f"Config value '{name}' must be a finite number in "
+            f"[{minimum}, {maximum}]: {value!r}"
+        ) from exc
+    if (
+        not math.isfinite(parsed)
+        or (minimum is not None and parsed < minimum)
+        or (maximum is not None and parsed > maximum)
+    ):
+        raise ValueError(
+            f"Config value '{name}' must be a finite number in "
+            f"[{minimum}, {maximum}]: {value!r}"
+        )
+    if isinstance(value, (int, float)):
+        return value
+    return parsed
+
+
+def config_int(value, name, default, minimum=None, maximum=None):
+    """Parse integer config values from YAML or CLI overrides."""
+    if value is None:
+        value = default
+    if isinstance(value, bool):
+        raise ValueError(
+            f"Config value '{name}' must be an integer in "
+            f"[{minimum}, {maximum}]: {value!r}"
+        )
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError(
+            f"Config value '{name}' must be an integer in "
+            f"[{minimum}, {maximum}]: {value!r}"
+        ) from exc
+    if isinstance(value, float) and not value.is_integer():
+        raise ValueError(
+            f"Config value '{name}' must be an integer in "
+            f"[{minimum}, {maximum}]: {value!r}"
+        )
+    if (
+        (minimum is not None and parsed < minimum)
+        or (maximum is not None and parsed > maximum)
+    ):
+        raise ValueError(
+            f"Config value '{name}' must be an integer in "
+            f"[{minimum}, {maximum}]: {value!r}"
+        )
+    return parsed
+
+
+def config_choice(value, name, choices, default=None):
+    """Parse enumerated config values from YAML or CLI overrides."""
+    if value is None:
+        value = default
+    text = str(value or "").strip()
+    allowed = sorted(choices)
+    if text not in choices:
+        raise ValueError(
+            f"Config value '{name}' must be one of {', '.join(allowed)}: "
+            f"{value!r}"
+        )
+    return text
+
+
+def config_text(value, name, default=""):
+    """Normalize free-text CLI/config values that may be omitted."""
+    if value is None:
+        value = default
+    text = str(value).strip()
+    return text
+
+
+def config_mapping(value, name):
+    """Require a YAML mapping for nested configuration sections."""
+    if not isinstance(value, dict):
+        raise ValueError(
+            f"Config section '{name}' must be a mapping/object: {value!r}"
+        )
+    return value
+
+
+def config_run_id(value):
+    """Validate run identifiers before they are interpolated into paths."""
+    text = config_text(value, "run_id")
+    if text in {"", ".", ".."} or not RUN_ID_RE.fullmatch(text):
+        raise ValueError(
+            "Config value 'run_id' must be a safe run identifier using only "
+            f"letters, numbers, '.', '_' and '-': {value!r}"
+        )
+    return text
+
+
+def config_path(value, name):
+    """Validate path-like config values without touching the filesystem."""
+    text = config_text(value, name)
+    if not text or "\x00" in text or "\n" in text or "\r" in text:
+        raise ValueError(f"Config path '{name}' must be a non-empty path: {value!r}")
+    if "://" in text:
+        raise ValueError(f"Config path '{name}' must be a filesystem path: {value!r}")
+    return text
+
+
+def config_date(value, name, default):
+    """Validate YYYY-MM-DD date strings used by leakage/evaluation gates."""
+    text = str(value if value is not None else default).strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        raise ValueError(
+            f"Config date '{name}' must use YYYY-MM-DD format: {value!r}"
+        )
+    return text
+
+
+def config_sha256(value, name):
+    """Validate pinned artifact digests before they reach download rules."""
+    text = config_text(value, name)
+    if not re.fullmatch(r"[0-9a-f]{64}", text):
+        raise ValueError(
+            f"Config sha256 '{name}' must be 64 lowercase hex characters: {value!r}"
+        )
+    return text
+
+
+def config_github_url(value, name, default):
+    """Validate public repository URLs used in publication provenance."""
+    text = str(value if value is not None else default).strip()
+    parsed = urlparse(text)
+    path_parts = [part for part in parsed.path.split("/") if part]
+    if parsed.scheme == "https" and parsed.netloc == "github.com" and len(path_parts) >= 2:
+        return text
+    raise ValueError(
+        f"Config URL '{name}' must use http(s) and point to "
+        f"github.com/<owner>/<repo>: {value!r}"
+    )
+
+
+def config_doi(value, name, *, draft_ok=False, required=False):
+    """Validate DOI strings for claim-quality publication output."""
+    text = str(value if value is not None else "pending").strip()
+    if DOI_RE.fullmatch(text) and "XXXX" not in text.upper():
+        return text
+    if text == "pending" and (draft_ok or not required):
+        return text
+    raise ValueError(
+        f"Config DOI '{name}' must be a real DOI for claim-quality "
+        "publication output; set draft_doi_ok=true only for explicit drafts: "
+        f"{value!r}"
+    )
+
+
+# --- Project paths and input contract ----------------------------------------
+for _key in (
+    "project_root",
+    "data_root",
+    "results_root",
+    "alphafold_raw",
+    "alphafold_clean",
+    "pockets",
+    "pdbqt",
+    "docking_boxes",
+    "no_pocket_list",
+    "chembl",
+    "bindingdb",
+    "gtopdb",
+    "drugbank",
+    "zinc22",
+    "mmseqs",
+    "uniprot_human_fasta",
+    "manifests",
+    "evidence_splits",
+):
+    config["paths"][_key] = config_path(config["paths"].get(_key), f"paths.{_key}")
+
+for _key in (
+    "hpa",
+    "skin_proteome",
+    "gtex",
+    "scrnaseq",
+    "skin_expression",
+    "cosing",
+    "drug_avoidance",
+    "skin_kg",
+    "pharmacophore_smarts",
+):
+    config["paths_v3"][_key] = config_path(
+        config["paths_v3"].get(_key),
+        f"paths_v3.{_key}",
+    )
+
+RUN_ID = config_run_id(config.get("run_id"))
+config["run_id"] = RUN_ID
+COMPOUND_SMILES = config_text(config.get("compound_smiles"), "compound_smiles")
+COMPOUND_SDF = config_text(config.get("compound_sdf"), "compound_sdf")
+if bool(COMPOUND_SMILES) == bool(COMPOUND_SDF):
+    raise ValueError(
+        "Exactly one of compound_smiles or compound_sdf must be provided"
+    )
+if COMPOUND_SDF:
+    COMPOUND_SDF = config_path(COMPOUND_SDF, "compound_sdf")
+config["compound_smiles"] = COMPOUND_SMILES
+config["compound_sdf"] = COMPOUND_SDF
+
+PROJECT_ROOT = Path(config["paths"]["project_root"])
+DATA          = Path(config["paths"]["data_root"])
+RESULTS       = Path(config["paths"]["results_root"])
+MANIFESTS     = Path(config["paths"]["manifests"])
+RUN_DIR       = RESULTS / RUN_ID
+PUBLICATION   = config.get("publication", {})
+
+MODE = config_choice(config.get("mode"), "mode", {"comprehensive", "fast", "both"})
+config["mode"] = MODE
+RUN_DTI = config_bool(config.get("run_dti_sanity"), True)
+SKIN_WEIGHT = config_float(
+    config.get("skin_weight"),
+    "skin_weight",
+    0.30,
+    minimum=0.0,
+    maximum=1.0,
+)
+config["skin_weight"] = SKIN_WEIGHT
+SKIN_MIN_THRESHOLD = config_float(
+    config.get("skin_min_threshold"),
+    "skin_min_threshold",
+    0.05,
+    minimum=0.0,
+    maximum=1.0,
+)
+config["skin_min_threshold"] = SKIN_MIN_THRESHOLD
+KNOWN_TARGET_PRIORS = config.setdefault("known_target_priors", {})
+KNOWN_TARGET_PRIORS["enabled"] = config_bool(
+    KNOWN_TARGET_PRIORS.get("enabled"),
+    False,
+    "known_target_priors.enabled",
+)
+KNOWN_TARGET_PRIORS["source_csv"] = config_path(
+    KNOWN_TARGET_PRIORS.get("source_csv"),
+    "known_target_priors.source_csv",
+)
+KNOWN_TARGET_PRIORS["weight"] = config_float(
+    KNOWN_TARGET_PRIORS.get("weight"),
+    "known_target_priors.weight",
+    0.00,
+    minimum=0.0,
+    maximum=1.0,
+)
+KNOWN_TARGET_PRIORS["similarity_enabled"] = config_bool(
+    KNOWN_TARGET_PRIORS.get("similarity_enabled"),
+    False,
+    "known_target_priors.similarity_enabled",
+)
+KNOWN_TARGET_PRIORS["similarity_threshold"] = config_float(
+    KNOWN_TARGET_PRIORS.get("similarity_threshold"),
+    "known_target_priors.similarity_threshold",
+    0.85,
+    minimum=0.0,
+    maximum=1.0,
+)
+KNOWN_TARGET_PRIORS["morgan_radius"] = config_int(
+    KNOWN_TARGET_PRIORS.get("morgan_radius"),
+    "known_target_priors.morgan_radius",
+    2,
+    minimum=1,
+    maximum=6,
+)
+KNOWN_TARGET_PRIORS["morgan_n_bits"] = config_int(
+    KNOWN_TARGET_PRIORS.get("morgan_n_bits"),
+    "known_target_priors.morgan_n_bits",
+    2048,
+    minimum=128,
+    maximum=65536,
+)
+KNOWN_TARGET_PRIORS["prior_combination_strategy"] = config_choice(
+    KNOWN_TARGET_PRIORS.get("prior_combination_strategy"),
+    "known_target_priors.prior_combination_strategy",
+    {"max", "sum_capped", "bayesian_or"},
+    "max",
+)
+KNOWN_TARGET_PRIORS["similarity_score_power"] = config_float(
+    KNOWN_TARGET_PRIORS.get("similarity_score_power"),
+    "known_target_priors.similarity_score_power",
+    1.0,
+    minimum=0.0 + 1e-12,
+)
+KNOWN_TARGET_PRIORS["supplemental_source_csv"] = KNOWN_TARGET_PRIORS.get(
+    "supplemental_source_csv"
+)
+if KNOWN_TARGET_PRIORS["supplemental_source_csv"]:
+    if not isinstance(KNOWN_TARGET_PRIORS["supplemental_source_csv"], str):
+        raise ValueError(
+            "Config value 'known_target_priors.supplemental_source_csv' must be a "
+            f"comma-separated string path list or empty: "
+            f"{KNOWN_TARGET_PRIORS['supplemental_source_csv']!r}"
+        )
+    KNOWN_TARGET_PRIORS["supplemental_source_csv"] = [
+        path.strip()
+        for path in str(KNOWN_TARGET_PRIORS["supplemental_source_csv"]).split(",")
+        if path.strip()
+    ]
+    KNOWN_TARGET_PRIORS["supplemental_source_csv"] = [
+        config_path(path, "known_target_priors.supplemental_source_csv")
+        for path in KNOWN_TARGET_PRIORS["supplemental_source_csv"]
+    ]
+else:
+    KNOWN_TARGET_PRIORS["supplemental_source_csv"] = []
+KNOWN_TARGET_PRIORS["max_similarity_candidates"] = config_int(
+    KNOWN_TARGET_PRIORS.get("max_similarity_candidates"),
+    "known_target_priors.max_similarity_candidates",
+    0,
+    minimum=0,
+)
+KNOWN_TARGET_PRIORS["min_score"] = config_float(
+    KNOWN_TARGET_PRIORS.get("min_score"),
+    "known_target_priors.min_score",
+    0.0,
+    minimum=0.0,
+    maximum=1.0,
+)
+KNOWN_TARGET_PRIORS["power"] = config_float(
+    KNOWN_TARGET_PRIORS.get("power"),
+    "known_target_priors.power",
+    1.0,
+    minimum=0.0 + 1e-12,
+)
+if KNOWN_TARGET_PRIORS["weight"] > 0 and not KNOWN_TARGET_PRIORS["enabled"]:
+    raise ValueError(
+        "known_target_priors.weight requires known_target_priors.enabled=true"
+    )
+if (
+    KNOWN_TARGET_PRIORS["similarity_enabled"]
+    and KNOWN_TARGET_PRIORS["similarity_threshold"] == 0.0
+):
+    raise ValueError(
+        "known_target_priors.similarity_threshold must be > 0 when "
+        "similarity fallback is enabled"
+    )
+if KNOWN_TARGET_PRIORS["enabled"] and not KNOWN_TARGET_PRIORS["source_csv"]:
+    raise ValueError(
+        "Config value 'known_target_priors.source_csv' must be non-empty when "
+        "known_target_priors.enabled=true"
+    )
+if KNOWN_TARGET_PRIORS["weight"] + SKIN_WEIGHT > 1:
+    raise ValueError("Known-target prior and skin-weight coefficients must sum to <= 1.0")
+V3_TARGET_WEIGHT_ENABLED = (SKIN_WEIGHT > 0) or (KNOWN_TARGET_PRIORS["weight"] > 0.0)
+EVALUATION = config["evaluation"]
+EVALUATION["common_cutoff_date"] = config_date(
+    EVALUATION.get("common_cutoff_date"),
+    "evaluation.common_cutoff_date",
+    "2023-10-01",
+)
+LEAKAGE = EVALUATION["leakage"]
+LEAKAGE["seq_id_threshold"] = config_float(
+    LEAKAGE.get("seq_id_threshold"),
+    "evaluation.leakage.seq_id_threshold",
+    0.30,
+    minimum=0.0,
+    maximum=1.0,
+)
+LEAKAGE["ligand_tanimoto_threshold"] = config_float(
+    LEAKAGE.get("ligand_tanimoto_threshold"),
+    "evaluation.leakage.ligand_tanimoto_threshold",
+    0.50,
+    minimum=0.0,
+    maximum=1.0,
+)
+LEAKAGE["pocket_sucos_threshold"] = config_float(
+    LEAKAGE.get("pocket_sucos_threshold"),
+    "evaluation.leakage.pocket_sucos_threshold",
+    0.50,
+    minimum=0.0,
+    maximum=1.0,
+)
+EVAL_THRESHOLDS = EVALUATION.setdefault("thresholds", {})
+for _key, _default in (
+    ("cold_start_min_recall_at_50", 0.01),
+    ("cosmetic_retro_min_mean_top10", 0.01),
+    ("skin_efficacy_min_mean_precision", 0.01),
+    ("skin_efficacy_min_mean_recall", 0.01),
+    ("analog_min_recovery", 0.01),
+    ("analog_min_novelty", 0.80),
+    ("analog_min_mean_ra_score", 0.70),
+    ("pharmacophore_min_preserved_fraction", 0.80),
+):
+    EVAL_THRESHOLDS[_key] = config_float(
+        EVAL_THRESHOLDS.get(_key),
+        f"evaluation.thresholds.{_key}",
+        _default,
+        minimum=0.0,
+        maximum=1.0,
+    )
+SOTA = EVALUATION.setdefault("sota", {})
+SOTA["enabled"] = config_bool(
+    SOTA.get("enabled"),
+    False,
+    "evaluation.sota.enabled",
+)
+SOTA["default_context_profile"] = config_choice(
+    SOTA.get("default_context_profile"),
+    "evaluation.sota.default_context_profile",
+    {
+        "auto",
+        "general_skin",
+        "pigmentation",
+        "anti_aging",
+        "barrier",
+        "acne",
+        "inflammation",
+        "irritation_sensitization",
+    },
+    "auto",
+)
+for _key, _default in (
+    ("skin_known_min_case_top10", 0.80),
+    ("skin_known_min_target_top10", 0.50),
+    ("skin_known_min_target_top30", 0.60),
+):
+    SOTA[_key] = config_float(
+        SOTA.get(_key),
+        f"evaluation.sota.{_key}",
+        _default,
+        minimum=0.0,
+        maximum=1.0,
+    )
+SOTA["skin_known_target_panel"] = config_text(
+    SOTA.get("skin_known_target_panel"),
+    "evaluation.sota.skin_known_target_panel",
+    "data/validation/skin_known_target_panel.csv",
+)
+SOTA["skin_known_target_rankings_dir"] = config_text(
+    SOTA.get("skin_known_target_rankings_dir"),
+    "evaluation.sota.skin_known_target_rankings_dir",
+    "results/eval/rankings/skin_known_target",
+)
+if SOTA["enabled"] and not SOTA["skin_known_target_panel"]:
+    raise ValueError("Config value 'evaluation.sota.skin_known_target_panel' must be non-empty")
+if SOTA["enabled"] and not SOTA["skin_known_target_rankings_dir"]:
+    raise ValueError("Config value 'evaluation.sota.skin_known_target_rankings_dir' must be non-empty")
+ACTIVITY_RETRIEVAL = EVALUATION.setdefault("activity_retrieval", {})
+ACTIVITY_RETRIEVAL["required"] = config_bool(
+    ACTIVITY_RETRIEVAL.get("required"),
+    True,
+    "evaluation.activity_retrieval.required",
+)
+for _key, _default in (
+    ("benchmark_dir", "data/activity_benchmark_202608"),
+    ("retrieval_index_dir", "data/activity_retrieval_202608"),
+    ("panels_dir", "data/activity_recovery_panels_202608"),
+    ("rcsb_raw_jsonl_gz", "data/rcsb_holo_20210101/holo_contacts.jsonl.gz"),
+    ("rcsb_snapshot_manifest", "data/rcsb_holo_20210101/manifest.json"),
+    ("rcsb_panel_pairs", "data/rcsb_holo_20210101/panel_pairs.parquet"),
+    ("rcsb_panel_exclusions", "data/rcsb_holo_20210101/panel_exclusions.csv"),
+    ("rcsb_ranking_queries", "data/rcsb_holo_20210101/ranking_queries.parquet"),
+    ("rcsb_panel_manifest", "data/rcsb_holo_20210101/panel_manifest.json"),
+    ("rcsb_contact_coordinate_dir", "data/rcsb_holo_20210101/contact_coordinates"),
+    ("rcsb_contact_fragment_dir", "data/rcsb_holo_20210101/contact_pocket_fragments"),
+    ("rcsb_contact_fragment_index", "data/rcsb_holo_20210101/contact_pocket_fragments_index.csv"),
+    ("rcsb_contact_fragment_exclusions", "data/rcsb_holo_20210101/contact_pocket_fragments_exclusions.csv"),
+    ("rcsb_contact_fragment_manifest", "data/rcsb_holo_20210101/contact_pocket_fragments.manifest.json"),
+    ("prior_pocket_targets", "data/evidence_splits/evidence_target_clusters_2026_02.csv"),
+    ("prior_pocket_target_manifest", "data/evidence_splits/evidence_target_clusters_2026_02.manifest.json"),
+    ("prior_pocket_fragment_dir", "data/pocket_fragments_202608"),
+    ("prior_pocket_fragment_index", "data/pocket_fragments_202608_index.csv"),
+    ("prior_pocket_fragment_exclusions", "data/pocket_fragments_202608_exclusions.csv"),
+    ("prior_pocket_fragment_manifest", "data/pocket_fragments_202608_manifest.json"),
+    ("prior_pocket_p2rank_params", "data/human_pockets/params.txt"),
+    ("rcsb_contact_pocket_leakage_rows", "results/audits/rcsb_contact_pocket_leakage_rows.csv"),
+    ("rcsb_contact_pocket_leakage_manifest", "results/audits/rcsb_contact_pocket_leakage.manifest.json"),
+    ("benchmark_target_clusters", "data/evidence_splits/screenable_target_clusters_2026_02.csv"),
+    ("benchmark_target_cluster_manifest", "data/evidence_splits/screenable_target_clusters_2026_02.manifest.json"),
+    ("screenable_target_clusters", "data/evidence_splits/screenable_target_clusters_2026_02.csv"),
+    ("screenable_target_cluster_manifest", "data/evidence_splits/screenable_target_clusters_2026_02.manifest.json"),
+    ("dev_selection_dir", "results/eval/activity_retrieval_202608/dev_selection"),
+    ("final_evaluation_dir", "results/eval/activity_retrieval_202608/test_evaluation"),
+    ("known_panel", "data/validation/skin_known_target_panel.csv"),
+):
+    ACTIVITY_RETRIEVAL[_key] = config_path(
+        ACTIVITY_RETRIEVAL.get(_key, _default),
+        f"evaluation.activity_retrieval.{_key}",
+    )
+for _key, _default, _minimum in (
+    ("rcsb_contact_context_residues", 2, 0),
+    ("rcsb_contact_download_retries", 3, 0),
+    ("prior_pocket_context_residues", 2, 0),
+    ("prior_pocket_min_fragment_residues", 12, 1),
+    ("pocket_leakage_threads", 16, 1),
+):
+    ACTIVITY_RETRIEVAL[_key] = config_int(
+        ACTIVITY_RETRIEVAL.get(_key),
+        f"evaluation.activity_retrieval.{_key}",
+        _default,
+        minimum=_minimum,
+    )
+ACTIVITY_RETRIEVAL["rcsb_contact_download_timeout"] = config_float(
+    ACTIVITY_RETRIEVAL.get("rcsb_contact_download_timeout"),
+    "evaluation.activity_retrieval.rcsb_contact_download_timeout",
+    30.0,
+    minimum=1e-12,
+)
+ACTIVITY_RETRIEVAL["prior_pocket_p2rank_version"] = config_text(
+    ACTIVITY_RETRIEVAL.get("prior_pocket_p2rank_version"),
+    "evaluation.activity_retrieval.prior_pocket_p2rank_version",
+    "2.5",
+)
+ACTIVITY_RETRIEVAL["pocket_leakage_foldseek"] = config_text(
+    ACTIVITY_RETRIEVAL.get("pocket_leakage_foldseek"),
+    "evaluation.activity_retrieval.pocket_leakage_foldseek",
+    "foldseek",
+)
+ACTIVITY_RETRIEVAL["dev_query_count"] = config_int(
+    ACTIVITY_RETRIEVAL.get("dev_query_count"),
+    "evaluation.activity_retrieval.dev_query_count",
+    256,
+    minimum=0,
+)
+ACTIVITY_RETRIEVAL["test_query_count"] = config_int(
+    ACTIVITY_RETRIEVAL.get("test_query_count"),
+    "evaluation.activity_retrieval.test_query_count",
+    256,
+    minimum=0,
+)
+ACTIVITY_RETRIEVAL["calibration_cap"] = config_int(
+    ACTIVITY_RETRIEVAL.get("calibration_cap"),
+    "evaluation.activity_retrieval.calibration_cap",
+    1024,
+    minimum=0,
+)
+ACTIVITY_RETRIEVAL["negative_threshold"] = config_float(
+    ACTIVITY_RETRIEVAL.get("negative_threshold"),
+    "evaluation.activity_retrieval.negative_threshold",
+    5.0,
+)
+ACTIVITY_RETRIEVAL["positive_threshold"] = config_float(
+    ACTIVITY_RETRIEVAL.get("positive_threshold"),
+    "evaluation.activity_retrieval.positive_threshold",
+    6.0,
+)
+if ACTIVITY_RETRIEVAL["negative_threshold"] >= ACTIVITY_RETRIEVAL["positive_threshold"]:
+    raise ValueError(
+        "evaluation.activity_retrieval.negative_threshold must be less than "
+        "evaluation.activity_retrieval.positive_threshold"
+    )
+ACTIVITY_RETRIEVAL["exclude_reference_similarity"] = config_float(
+    ACTIVITY_RETRIEVAL.get("exclude_reference_similarity"),
+    "evaluation.activity_retrieval.exclude_reference_similarity",
+    0.85,
+    minimum=1e-12,
+    maximum=1.0,
+)
+ACTIVITY_RETRIEVAL["allow_no_improvement"] = config_bool(
+    ACTIVITY_RETRIEVAL.get("allow_no_improvement"),
+    False,
+    "evaluation.activity_retrieval.allow_no_improvement",
+)
+PERFORMANCE_V2 = EVALUATION.setdefault("performance_v2", {})
+PERFORMANCE_V2["enabled"] = config_bool(
+    PERFORMANCE_V2.get("enabled"),
+    False,
+    "evaluation.performance_v2.enabled",
+)
+PERFORMANCE_V2["mode"] = config_choice(
+    PERFORMANCE_V2.get("mode"),
+    "evaluation.performance_v2.mode",
+    {"production", "fixture"},
+    "production",
+)
+for _key, _default in (
+    ("train_benchmark", "data/activity_benchmark_202608/train.parquet"),
+    ("retrieval_ligands", "data/activity_retrieval_202608/ligands.parquet"),
+    ("target_fasta", "data/evidence_splits/target_clusters_aug30_2026_02_all_seqs.fasta"),
+    ("target_clusters", "data/evidence_splits/screenable_target_clusters_2026_02.csv"),
+    ("evaluation_panel_manifest", "data/activity_recovery_panels_202608/manifest.json"),
+    ("dev_ranking_queries", "data/activity_recovery_panels_202608/dev_ranking_queries.parquet"),
+    ("dev_calibration_pairs", "data/activity_recovery_panels_202608/dev_calibration_pairs.parquet"),
+    ("dual_cold_ranking_queries", "data/activity_recovery_panels_202608/dual_cold_ranking_queries.parquet"),
+    ("output_dir", "data/performance_v2_202608"),
+    ("evaluation_dir", "results/eval/performance_v2_202608"),
+):
+    PERFORMANCE_V2[_key] = config_path(
+        PERFORMANCE_V2.get(_key, _default),
+        f"evaluation.performance_v2.{_key}",
+    )
+for _key, _default, _minimum in (
+    ("ligand_batch_size", 16, 1),
+    ("protein_batch_size", 8, 1),
+    ("training_batch_size", 2048, 1),
+    ("hidden_dim", 512, 1),
+    ("epochs", 20, 1),
+    ("rerank_top_k", 512, 1),
+    ("structure_top_k", 64, 1),
+    ("boltz_top_k", 3, 1),
+    ("boltz_max_residues", 700, 1),
+    ("max_trainable_parameters", 10_000_000, 1),
+):
+    PERFORMANCE_V2[_key] = config_int(
+        PERFORMANCE_V2.get(_key),
+        f"evaluation.performance_v2.{_key}",
+        _default,
+        minimum=_minimum,
+    )
+PERFORMANCE_V2["learning_rate"] = config_float(
+    PERFORMANCE_V2.get("learning_rate"),
+    "evaluation.performance_v2.learning_rate",
+    0.001,
+    minimum=1e-12,
+)
+PERFORMANCE_V2["max_peak_vram_gib"] = config_float(
+    PERFORMANCE_V2.get("max_peak_vram_gib"),
+    "evaluation.performance_v2.max_peak_vram_gib",
+    11.5,
+    minimum=1e-12,
+    maximum=11.5,
+)
+for _key, _expected in (
+    ("molformer_checkpoint", "ibm-research/MoLFormer-XL-both-10pct"),
+    ("molformer_revision", "compat-v4"),
+    ("esm2_checkpoint", "esm2_t30_150M_UR50D"),
+    ("esm2_revision", "main"),
+):
+    PERFORMANCE_V2[_key] = config_text(
+        PERFORMANCE_V2.get(_key),
+        f"evaluation.performance_v2.{_key}",
+        _expected,
+    )
+    if PERFORMANCE_V2[_key] != _expected:
+        raise ValueError(
+            f"evaluation.performance_v2.{_key} must remain pinned to {_expected!r}"
+        )
+if PERFORMANCE_V2["max_trainable_parameters"] > 10_000_000:
+    raise ValueError(
+        "evaluation.performance_v2.max_trainable_parameters must be <= 10000000"
+    )
+if not (
+    PERFORMANCE_V2["boltz_top_k"]
+    <= PERFORMANCE_V2["structure_top_k"]
+    <= PERFORMANCE_V2["rerank_top_k"]
+):
+    raise ValueError(
+        "evaluation.performance_v2 budgets must satisfy "
+        "boltz_top_k <= structure_top_k <= rerank_top_k"
+    )
+_performance_v2_seeds = PERFORMANCE_V2.get("seeds", [17, 42, 73])
+if _performance_v2_seeds != [17, 42, 73]:
+    raise ValueError(
+        "evaluation.performance_v2.seeds must remain exactly [17, 42, 73]"
+    )
+PERFORMANCE_V2["seeds"] = _performance_v2_seeds
+PUBLICATION["build_publication_package"] = config_bool(
+    PUBLICATION.get("build_publication_package"),
+    False,
+    "publication.build_publication_package",
+)
+PUBLICATION["emit_manuscript_draft"] = config_bool(
+    PUBLICATION.get("emit_manuscript_draft"),
+    False,
+    "publication.emit_manuscript_draft",
+)
+PUBLICATION["allow_placeholders"] = config_bool(
+    PUBLICATION.get("allow_placeholders"),
+    False,
+    "publication.allow_placeholders",
+)
+PUBLICATION["draft_doi_ok"] = config_bool(
+    PUBLICATION.get("draft_doi_ok"),
+    False,
+    "publication.draft_doi_ok",
+)
+if PUBLICATION["build_publication_package"] and PUBLICATION["allow_placeholders"]:
+    raise ValueError(
+        "publication.allow_placeholders cannot be true when "
+        "publication.build_publication_package is true; placeholder outputs "
+        "are only for explicit draft diagnostics"
+    )
+if PUBLICATION["build_publication_package"] and PUBLICATION["draft_doi_ok"]:
+    raise ValueError(
+        "publication.draft_doi_ok cannot be true when "
+        "publication.build_publication_package is true; claim-quality "
+        "publication output requires a real DOI"
+    )
+PUBLICATION["pipeline_source_url"] = config_github_url(
+    PUBLICATION.get("pipeline_source_url"),
+    "publication.pipeline_source_url",
+    "https://github.com/kangk1204/SkinScout_public",
+)
+PUBLICATION["skin_efficacy_kg_doi"] = config_doi(
+    PUBLICATION.get("skin_efficacy_kg_doi"),
+    "publication.skin_efficacy_kg_doi",
+    draft_ok=PUBLICATION["draft_doi_ok"],
+    required=PUBLICATION["build_publication_package"],
+)
+DOCKING = config["docking"]
+DOCKING["comprehensive_max_receptors"] = config_int(
+    DOCKING.get("comprehensive_max_receptors"),
+    "docking.comprehensive_max_receptors",
+    0,
+    minimum=0,
+)
+DOCKING["autodock_runs"] = config_int(
+    DOCKING.get("autodock_runs"),
+    "docking.autodock_runs",
+    20,
+    minimum=1,
+)
+DOCKING["fast_mode_autodock_runs"] = config_int(
+    DOCKING.get("fast_mode_autodock_runs"),
+    "docking.fast_mode_autodock_runs",
+    min(DOCKING["autodock_runs"], 4),
+    minimum=1,
+)
+DOCKING["fast_mode_daina_top_n"] = config_int(
+    DOCKING.get("fast_mode_daina_top_n"),
+    "docking.fast_mode_daina_top_n",
+    256,
+    minimum=1,
+)
+if DOCKING["fast_mode_daina_top_n"] != 256:
+    raise ValueError(
+        "docking.fast_mode_daina_top_n is a frozen public contract and must equal 256"
+    )
+DOCKING["fast_mode_autodock_max_receptors"] = config_int(
+    DOCKING.get("fast_mode_autodock_max_receptors"),
+    "docking.fast_mode_autodock_max_receptors",
+    256,
+    minimum=0,
+)
+if DOCKING["fast_mode_autodock_max_receptors"] not in {
+    0,
+    DOCKING["fast_mode_daina_top_n"],
+}:
+    raise ValueError(
+        "docking.fast_mode_autodock_max_receptors must be 0 or equal to "
+        "docking.fast_mode_daina_top_n so selected targets are not silently dropped"
+    )
+DOCKING["fast_mode_rerank_keep"] = config_int(
+    DOCKING.get("fast_mode_rerank_keep"),
+    "docking.fast_mode_rerank_keep",
+    10,
+    minimum=0,
+)
+DOCKING["fast_mode_rerank_band"] = config_int(
+    DOCKING.get("fast_mode_rerank_band"),
+    "docking.fast_mode_rerank_band",
+    50,
+    minimum=0,
+)
+if (
+    DOCKING["fast_mode_rerank_band"] > DOCKING["fast_mode_daina_top_n"]
+):
+    raise ValueError(
+        "docking.fast_mode_rerank_band cannot exceed docking.fast_mode_daina_top_n"
+    )
+DOCKING["fast_mode_dock_band_only"] = config_bool(
+    DOCKING.get("fast_mode_dock_band_only"), True
+)
+DOCKING["fast_mode_autogrid_spacing"] = config_float(
+    DOCKING.get("fast_mode_autogrid_spacing"),
+    "docking.fast_mode_autogrid_spacing",
+    0.375,
+    minimum=1e-12,
+)
+DOCKING["fast_mode_autogrid_cache"] = config_path(
+    DOCKING.get("fast_mode_autogrid_cache"),
+    "docking.fast_mode_autogrid_cache",
+)
+DOCKING["top_pct_to_rescore"] = config_float(
+    DOCKING.get("top_pct_to_rescore"),
+    "docking.top_pct_to_rescore",
+    0.02,
+    minimum=0.0,
+    maximum=1.0,
+)
+DOCKING["top_n_consensus"] = config_int(
+    DOCKING.get("top_n_consensus"),
+    "docking.top_n_consensus",
+    50,
+    minimum=1,
+)
+DOCKING["rrf_k"] = config_int(
+    DOCKING.get("rrf_k"),
+    "docking.rrf_k",
+    60,
+    minimum=1,
+)
+DOCKING["comprehensive_rrf_recipe_id"] = config_text(
+    DOCKING.get("comprehensive_rrf_recipe_id"),
+    "docking.comprehensive_rrf_recipe_id",
+    "equal-rrf-v1",
+)
+
+
+def validated_rrf_weights(value, label, expected_labels):
+    weights = config_mapping(value, label)
+    actual_labels = set(weights)
+    expected_labels = set(expected_labels)
+    if actual_labels != expected_labels:
+        missing = sorted(expected_labels - actual_labels)
+        extra = sorted(actual_labels - expected_labels)
+        raise ValueError(
+            f"{label} labels must exactly match scorer labels; "
+            f"missing={missing} extra={extra}"
+        )
+    return {
+        source: config_float(
+            weights[source],
+            f"{label}.{source}",
+            1.0,
+            minimum=1e-12,
+        )
+        for source in sorted(expected_labels)
+    }
+
+
+DOCKING["comprehensive_rrf_source_weights"] = validated_rrf_weights(
+    DOCKING.get("comprehensive_rrf_source_weights"),
+    "docking.comprehensive_rrf_source_weights",
+    {"autodock", "gnina", "rtm", "boltz"},
+)
+DOCKING["daina_evidence_mode"] = config_choice(
+    DOCKING.get("daina_evidence_mode"),
+    "docking.daina_evidence_mode",
+    {"retrieval", "leave-query-out", "temporal"},
+)
+DOCKING["daina_quality_policy"] = config_choice(
+    DOCKING.get("daina_quality_policy"),
+    "docking.daina_quality_policy",
+    {"legacy", "high-confidence", "claim-grade"},
+)
+DOCKING["daina_scoring_method"] = config_choice(
+    DOCKING.get("daina_scoring_method"),
+    "docking.daina_scoring_method",
+    {"max-similarity", "quality-hybrid"},
+)
+DOCKING["daina_exclude_reference_similarity"] = config_float(
+    DOCKING.get("daina_exclude_reference_similarity"),
+    "docking.daina_exclude_reference_similarity",
+    0.85,
+    minimum=1e-12,
+    maximum=1.0,
+)
+DOCKING["min_sources_comprehensive"] = config_int(
+    DOCKING.get("min_sources_comprehensive"),
+    "docking.min_sources_comprehensive",
+    3,
+    minimum=1,
+)
+DOCKING["psichic_batch_size"] = config_int(
+    DOCKING.get("psichic_batch_size"),
+    "docking.psichic_batch_size",
+    512,
+    minimum=1,
+)
+DOCKING["psichic_score_batch_size"] = config_int(
+    DOCKING.get("psichic_score_batch_size"),
+    "docking.psichic_score_batch_size",
+    8,
+    minimum=1,
+)
+DOCKING["psichic_esm_short_batch_size"] = config_int(
+    DOCKING.get("psichic_esm_short_batch_size"),
+    "docking.psichic_esm_short_batch_size",
+    4,
+    minimum=1,
+)
+DOCKING["psichic_esm_medium_batch_size"] = config_int(
+    DOCKING.get("psichic_esm_medium_batch_size"),
+    "docking.psichic_esm_medium_batch_size",
+    2,
+    minimum=1,
+)
+DOCKING["psichic_esm_long_batch_size"] = config_int(
+    DOCKING.get("psichic_esm_long_batch_size"),
+    "docking.psichic_esm_long_batch_size",
+    1,
+    minimum=1,
+)
+DOCKING["psichic_max_sequence_length"] = config_int(
+    DOCKING.get("psichic_max_sequence_length"),
+    "docking.psichic_max_sequence_length",
+    700,
+    minimum=1,
+)
+HARDWARE = config["hardware"]
+HARDWARE["gpu_vram_gb"] = config_float(
+    HARDWARE.get("gpu_vram_gb"),
+    "hardware.gpu_vram_gb",
+    12,
+    minimum=1.0,
+)
+HARDWARE["cpu_cores"] = config_int(
+    HARDWARE.get("cpu_cores"),
+    "hardware.cpu_cores",
+    16,
+    minimum=1,
+)
+HARDWARE["pocket_crop_radius"] = config_float(
+    HARDWARE.get("pocket_crop_radius"),
+    "hardware.pocket_crop_radius",
+    20.0,
+    minimum=1.0,
+)
+HARDWARE["boltz2_max_residues"] = config_int(
+    HARDWARE.get("boltz2_max_residues"),
+    "hardware.boltz2_max_residues",
+    700,
+    minimum=1,
+)
+HARDWARE["esmfold_chunk_size"] = config_int(
+    HARDWARE.get("esmfold_chunk_size"),
+    "hardware.esmfold_chunk_size",
+    128,
+    minimum=1,
+)
+BOLTZ2 = config["boltz2"]
+BOLTZ2["num_seeds"] = config_int(
+    BOLTZ2.get("num_seeds"),
+    "boltz2.num_seeds",
+    5,
+    minimum=1,
+)
+BOLTZ2["num_recycles"] = config_int(
+    BOLTZ2.get("num_recycles"),
+    "boltz2.num_recycles",
+    3,
+    minimum=1,
+)
+BOLTZ2["iptm_threshold"] = config_float(
+    BOLTZ2.get("iptm_threshold"),
+    "boltz2.iptm_threshold",
+    0.6,
+    minimum=0.0,
+    maximum=1.0,
+)
+BOLTZ2["pocket_plddt_threshold"] = config_float(
+    BOLTZ2.get("pocket_plddt_threshold"),
+    "boltz2.pocket_plddt_threshold",
+    75,
+    minimum=0.0,
+    maximum=100.0,
+)
+STAGE0 = config["stage0"]
+STAGE0["chembl_release"] = config_int(
+    STAGE0.get("chembl_release"),
+    "stage0.chembl_release",
+    37,
+    minimum=1,
+)
+STAGE0["bindingdb_release"] = config_text(
+    STAGE0.get("bindingdb_release"),
+    "stage0.bindingdb_release",
+    "2026-08",
+)
+STAGE0["gtopdb_release"] = config_text(
+    STAGE0.get("gtopdb_release"),
+    "stage0.gtopdb_release",
+    "2026.2",
+)
+if not re.fullmatch(r"[0-9]{4}\.[1-4]", STAGE0["gtopdb_release"]):
+    raise ValueError(
+        "Config value 'stage0.gtopdb_release' must use GtoPdb YYYY.N format"
+    )
+STAGE0["gtopdb_release_date"] = config_date(
+    STAGE0.get("gtopdb_release_date"),
+    "stage0.gtopdb_release_date",
+    "2026-06-15",
+)
+for _key in (
+    "gtopdb_interactions_sha256",
+    "gtopdb_ligands_sha256",
+    "gtopdb_target_mapping_sha256",
+    "gtopdb_file_descriptions_sha256",
+):
+    STAGE0[_key] = config_sha256(STAGE0.get(_key), f"stage0.{_key}")
+STAGE0["expected_tar_gb"] = config_float(
+    STAGE0.get("expected_tar_gb"),
+    "stage0.expected_tar_gb",
+    5,
+    minimum=0.0,
+)
+STAGE0["expected_protein_count"] = config_int(
+    STAGE0.get("expected_protein_count"),
+    "stage0.expected_protein_count",
+    20000,
+    minimum=1,
+)
+STAGE0["plddt_remove_cutoff"] = config_float(
+    STAGE0.get("plddt_remove_cutoff"),
+    "stage0.plddt_remove_cutoff",
+    50,
+    minimum=0.0,
+    maximum=100.0,
+)
+STAGE0["plddt_softmask_cutoff"] = config_float(
+    STAGE0.get("plddt_softmask_cutoff"),
+    "stage0.plddt_softmask_cutoff",
+    70,
+    minimum=0.0,
+    maximum=100.0,
+)
+STAGE0["trim_run_length"] = config_int(
+    STAGE0.get("trim_run_length"),
+    "stage0.trim_run_length",
+    5,
+    minimum=1,
+)
+STAGE0["trim_min_length"] = config_int(
+    STAGE0.get("trim_min_length"),
+    "stage0.trim_min_length",
+    30,
+    minimum=1,
+)
+STAGE0["p2rank_threads"] = config_int(
+    STAGE0.get("p2rank_threads"),
+    "stage0.p2rank_threads",
+    16,
+    minimum=1,
+)
+STAGE0["p2rank_min_usable_fraction"] = config_float(
+    STAGE0.get("p2rank_min_usable_fraction"),
+    "stage0.p2rank_min_usable_fraction",
+    0.50,
+    minimum=0.0,
+    maximum=1.0,
+)
+STAGE0["meeko_threads"] = config_int(
+    STAGE0.get("meeko_threads"),
+    "stage0.meeko_threads",
+    8,
+    minimum=1,
+)
+STAGE0["pdbqt_min_success_fraction"] = config_float(
+    STAGE0.get("pdbqt_min_success_fraction"),
+    "stage0.pdbqt_min_success_fraction",
+    0.80,
+    minimum=0.0,
+    maximum=1.0,
+)
+STAGE0["pdbqt_min_success_count"] = config_int(
+    STAGE0.get("pdbqt_min_success_count"),
+    "stage0.pdbqt_min_success_count",
+    1,
+    minimum=1,
+)
+ADMET = config["admet"]
+ADMET["skin_sens_halt_min_votes"] = config_int(
+    ADMET.get("skin_sens_halt_min_votes"),
+    "admet.skin_sens_halt_min_votes",
+    2,
+    minimum=1,
+    maximum=3,
+)
+# Only "warn" is implemented. stage2_pains_brenk.py writes the alert JSON and
+# never receives an action, and Stage 3 entry gates on skin sensitization and
+# the cosmetic/drug decision only - so "drop" was an accepted setting with no
+# execution meaning, which reads as a safety control that is not there.
+ADMET["pains_action"] = config_choice(
+    ADMET.get("pains_action"),
+    "admet.pains_action",
+    {"warn"},
+)
+COSING = config["cosing"]
+COSING["exact_threshold"] = config_float(
+    COSING.get("exact_threshold"),
+    "cosing.exact_threshold",
+    1.0,
+    minimum=0.0,
+    maximum=1.0,
+)
+COSING["similar_threshold"] = config_float(
+    COSING.get("similar_threshold"),
+    "cosing.similar_threshold",
+    0.85,
+    minimum=0.0,
+    maximum=1.0,
+)
+COSING["analog_threshold"] = config_float(
+    COSING.get("analog_threshold"),
+    "cosing.analog_threshold",
+    0.65,
+    minimum=0.0,
+    maximum=1.0,
+)
+DRUG_AVOIDANCE = config["drug_avoidance"]
+DRUG_AVOIDANCE["drug_policy"] = config_choice(
+    DRUG_AVOIDANCE.get("drug_policy"),
+    "drug_avoidance.drug_policy",
+    {"strict", "moderate", "lenient"},
+)
+DRUG_AVOIDANCE["strict_threshold"] = config_float(
+    DRUG_AVOIDANCE.get("strict_threshold"),
+    "drug_avoidance.strict_threshold",
+    0.85,
+    minimum=0.0,
+    maximum=1.0,
+)
+DRUG_AVOIDANCE["soft_threshold"] = config_float(
+    DRUG_AVOIDANCE.get("soft_threshold"),
+    "drug_avoidance.soft_threshold",
+    0.65,
+    minimum=0.0,
+    maximum=1.0,
+)
+DRUG_AVOIDANCE["downweight_factor"] = config_float(
+    DRUG_AVOIDANCE.get("downweight_factor"),
+    "drug_avoidance.downweight_factor",
+    0.50,
+    minimum=0.0,
+    maximum=1.0,
+)
+PHARMACOPHORE = config["pharmacophore"]
+PHARMACOPHORE["consensus_min_votes"] = config_int(
+    PHARMACOPHORE.get("consensus_min_votes"),
+    "pharmacophore.consensus_min_votes",
+    2,
+    minimum=1,
+)
+BIOEMU = config["bioemu"]
+BIOEMU["num_conformers"] = config_int(
+    BIOEMU.get("num_conformers"),
+    "bioemu.num_conformers",
+    1000,
+    minimum=1,
+)
+if "tICA_lag_steps" in BIOEMU:
+    raise ValueError(
+        "bioemu.tICA_lag_steps is unsupported: BioEmu uses rigid-aligned "
+        "coordinate k-means, not time-lagged clustering; remove this option"
+    )
+BIOEMU["kmeans_k"] = config_int(
+    BIOEMU.get("kmeans_k"),
+    "bioemu.kmeans_k",
+    8,
+    minimum=1,
+)
+BIOEMU["ensemble_dock_top_n"] = config_int(
+    BIOEMU.get("ensemble_dock_top_n"),
+    "bioemu.ensemble_dock_top_n",
+    10,
+    minimum=1,
+)
+MD = config["md"]
+MD["duration_ns"] = config_float(
+    MD.get("duration_ns"),
+    "md.duration_ns",
+    50,
+    minimum=0.0,
+)
+MD["num_replicas"] = config_int(
+    MD.get("num_replicas"),
+    "md.num_replicas",
+    3,
+    minimum=1,
+)
+MD["timestep_fs"] = config_float(
+    MD.get("timestep_fs"),
+    "md.timestep_fs",
+    2.0,
+    minimum=0.0,
+)
+MD["top_n_for_md"] = config_int(
+    MD.get("top_n_for_md"),
+    "md.top_n_for_md",
+    3,
+    minimum=1,
+)
+for _key in ("complex_pose", "complex_pose_manifest", "ligand_topology"):
+    MD[_key] = config_text(MD.get(_key), f"md.{_key}")
+MD["gmx_command"] = config_text(MD.get("gmx_command"), "md.gmx_command", "gmx")
+MD["acpype_command"] = config_text(
+    MD.get("acpype_command"), "md.acpype_command", "acpype"
+)
+QM = config["qm"]
+QM["semi_empirical"] = config_choice(
+    QM.get("semi_empirical"),
+    "qm.semi_empirical",
+    {"gfn1", "gfn2"},
+)
+QM["top_n_for_qm"] = config_int(
+    QM.get("top_n_for_qm"),
+    "qm.top_n_for_qm",
+    3,
+    minimum=1,
+)
+ANALOG_GEN = config_mapping(config.get("analog_gen"), "analog_gen")
+ANALOG_GEN["enabled"] = config_bool(
+    ANALOG_GEN.get("enabled"), False, "analog_gen.enabled"
+)
+ANALOG_GEN["reinvent_mode"] = config_choice(
+    ANALOG_GEN.get("reinvent_mode"),
+    "analog_gen.reinvent_mode",
+    {"mol2mol", "libinvent", "linkinvent"},
+)
+ANALOG_GEN["num_generated"] = config_int(
+    ANALOG_GEN.get("num_generated"),
+    "analog_gen.num_generated",
+    5000,
+    minimum=1,
+)
+ANALOG_GEN["funnel_admet"] = config_int(
+    ANALOG_GEN.get("funnel_admet"),
+    "analog_gen.funnel_admet",
+    500,
+    minimum=1,
+)
+ANALOG_GEN["funnel_aizynth"] = config_int(
+    ANALOG_GEN.get("funnel_aizynth"),
+    "analog_gen.funnel_aizynth",
+    300,
+    minimum=1,
+)
+ANALOG_GEN["funnel_drug"] = config_int(
+    ANALOG_GEN.get("funnel_drug"),
+    "analog_gen.funnel_drug",
+    250,
+    minimum=1,
+)
+ANALOG_GEN["funnel_boltz"] = config_int(
+    ANALOG_GEN.get("funnel_boltz"),
+    "analog_gen.funnel_boltz",
+    30,
+    minimum=1,
+)
+for _key in (
+    "reinvent_executable",
+    "reinvent_model_manifest",
+    "reinvent_config",
+    "reinvent_plugin_manifest",
+):
+    ANALOG_GEN[_key] = config_text(ANALOG_GEN.get(_key), f"analog_gen.{_key}")
+ANALOG_GEN["reinvent_seed"] = config_int(
+    ANALOG_GEN.get("reinvent_seed"),
+    "analog_gen.reinvent_seed",
+    49242,
+    minimum=0,
+)
+ANALOG_GEN["reinvent_timeout_seconds"] = config_int(
+    ANALOG_GEN.get("reinvent_timeout_seconds"),
+    "analog_gen.reinvent_timeout_seconds",
+    3600,
+    minimum=1,
+)
+FINETUNE = ANALOG_GEN.setdefault("finetune", {})
+FINETUNE["enabled"] = config_bool(
+    FINETUNE.get("enabled"), False, "analog_gen.finetune.enabled"
+)
+for _key in (
+    "train_smiles",
+    "holdout_smiles",
+    "prior",
+    "agent",
+    "staged_config",
+    "plugin_manifest",
+    "command_template",
+):
+    FINETUNE[_key] = config_text(
+        FINETUNE.get(_key), f"analog_gen.finetune.{_key}"
+    )
+FINETUNE["allow_empty_output"] = config_bool(
+    FINETUNE.get("allow_empty_output"),
+    False,
+    "analog_gen.finetune.allow_empty_output",
+)
+if FINETUNE["enabled"] and not ANALOG_GEN["enabled"]:
+    raise ValueError(
+        "analog_gen.finetune.enabled requires analog_gen.enabled=true"
+    )
+if ANALOG_GEN["enabled"]:
+    _missing_reinvent = [
+        _key
+        for _key in (
+            "reinvent_executable",
+            "reinvent_config",
+            "reinvent_plugin_manifest",
+        )
+        if not ANALOG_GEN[_key]
+    ]
+    if not FINETUNE["enabled"] and not ANALOG_GEN["reinvent_model_manifest"]:
+        _missing_reinvent.append("reinvent_model_manifest")
+    if _missing_reinvent:
+        raise ValueError(
+            "analog_gen.enabled=true requires pinned REINVENT4 config values: "
+            + ", ".join(_missing_reinvent)
+        )
+    if FINETUNE["enabled"]:
+        _missing_finetune = [
+            _key
+            for _key in (
+                "train_smiles",
+                "holdout_smiles",
+                "prior",
+                "agent",
+                "staged_config",
+                "plugin_manifest",
+                "command_template",
+            )
+            if not FINETUNE[_key]
+        ]
+        if _missing_finetune:
+            raise ValueError(
+                "analog_gen.finetune.enabled=true requires frozen fine-tune "
+                "config values: " + ", ".join(_missing_finetune)
+            )
+        if ANALOG_GEN["reinvent_model_manifest"]:
+            raise ValueError(
+                "analog_gen.reinvent_model_manifest must be empty when "
+                "analog_gen.finetune.enabled=true; the fine-tune manifest is "
+                "generated inside the run directory"
+            )
+RETROSYNTHESIS = config_mapping(
+    config.get("retrosynthesis"), "retrosynthesis"
+)
+RETROSYNTHESIS["enabled"] = config_bool(
+    RETROSYNTHESIS.get("enabled"), False, "retrosynthesis.enabled"
+)
+RETROSYNTHESIS["executable"] = config_text(
+    RETROSYNTHESIS.get("executable"), "retrosynthesis.executable", "aizynthcli"
+)
+for _key in ("config", "model_manifest", "stock_manifest"):
+    RETROSYNTHESIS[_key] = config_text(
+        RETROSYNTHESIS.get(_key), f"retrosynthesis.{_key}"
+    )
+RETROSYNTHESIS["iteration_limit"] = config_int(
+    RETROSYNTHESIS.get("iteration_limit"),
+    "retrosynthesis.iteration_limit",
+    100,
+    minimum=1,
+)
+RETROSYNTHESIS["time_limit_s"] = config_int(
+    RETROSYNTHESIS.get("time_limit_s"),
+    "retrosynthesis.time_limit_s",
+    120,
+    minimum=1,
+)
+RETROSYNTHESIS["max_transforms"] = config_int(
+    RETROSYNTHESIS.get("max_transforms"),
+    "retrosynthesis.max_transforms",
+    6,
+    minimum=1,
+)
+if RETROSYNTHESIS["enabled"]:
+    _missing_aizynth = [
+        _key
+        for _key in ("config", "model_manifest", "stock_manifest")
+        if not RETROSYNTHESIS[_key]
+    ]
+    if _missing_aizynth:
+        raise ValueError(
+            "retrosynthesis.enabled=true requires pinned AiZynthFinder assets: "
+            + ", ".join(_missing_aizynth)
+        )
+
+os.makedirs(MANIFESTS, exist_ok=True)
+os.makedirs(RUN_DIR, exist_ok=True)
+
+
+# --- Wildcard helpers --------------------------------------------------------
+def uniprot_ids():
+    """Return list of cleaned UniProt IDs in data/human_clean/.
+
+    Returns [] before Stage 0 has been built so the DAG can still be parsed.
+    """
+    clean = Path(config["paths"]["alphafold_clean"])
+    if not clean.exists():
+        return []
+    return sorted(p.stem.removesuffix("_clean") for p in clean.glob("*_clean.pdb"))
+
+# --- Stage rule includes -----------------------------------------------------
+include: "rules/stage0_infra.smk"
+include: "rules/stage0_v3_skin.smk"
+include: "rules/stage0_v3_cosmetic.smk"
+include: "rules/stage1_preprocess.smk"
+include: "rules/stage2_admet.smk"
+include: "rules/stage2_5_cosmetic_drug.smk"
+# Stage 3 output directories are shared by the comprehensive path, the fast path
+# and the skin-weighting rules. They lived in stage3a_comprehensive.smk, which
+# made the include order circular once stage3_v3_skin_weight had to come first.
+S3C_DIR = RUN_DIR / "03_targets" / "mode_comprehensive"
+S3F_DIR = RUN_DIR / "03_targets" / "mode_fast"
+
+# stage3b_fast and stage3_v3_skin_weight both reference rules.known_target_prior,
+# which stage3_v3_skin_weight defines. With it included last, Snakemake could not
+# parse the workflow in any mode - fast or comprehensive - so nothing ran at all.
+# It depends only on stage2_5 rules, so it is safe ahead of the stage 3 paths.
+include: "rules/stage3_v3_skin_weight.smk"
+include: "rules/stage3a_comprehensive.smk"
+include: "rules/stage3b_fast.smk"
+include: "rules/stage3c_disagreement.smk"
+include: "rules/activity_retrieval.smk"
+include: "rules/performance_v2.smk"
+include: "rules/stage4_struct.smk"
+include: "rules/stage5_boltz2.smk"
+include: "rules/stage5_5_pharmacophore.smk"
+include: "rules/stage5_6_analog_gen.smk"
+include: "rules/stage6_bioemu.smk"
+include: "rules/stage7_md.smk"
+include: "rules/stage7_5_retrosynthesis.smk"
+include: "rules/stage8_qm.smk"
+include: "rules/stage9_report.smk"
+include: "rules/stage11_publication.smk"
+
+def mode_targets():
+    """Return the set of files that 'all' should produce for the chosen mode."""
+    report_html = RUN_DIR / "09_report" / "index.html"
+    targets = [str(report_html)]
+    if MODE in ("comprehensive", "both"):
+        targets.append(str(RUN_DIR / "03_targets" / "mode_comprehensive" / "top50_4way_consensus.csv"))
+        if RUN_DTI:
+            targets.append(str(RUN_DIR / "03_targets" / "mode_comprehensive" / "disagreement_analysis.json"))
+    if MODE in ("fast", "both"):
+        targets.append(str(RUN_DIR / "03_targets" / "mode_fast" / "top50.csv"))
+        targets.append(
+            str(RUN_DIR / "03_targets" / "mode_fast" / "top50_band_reranked.csv")
+        )
+    # v3 skin-weighted ranking — produced whenever the skin weight is non-zero,
+    # i.e. cosmetic-domain runs. Set skin_weight=0 in config to opt out.
+    if V3_TARGET_WEIGHT_ENABLED:
+        targets.append(str(RUN_DIR / "03_targets" / "ranked_targets_v3_with_efficacy.csv"))
+    if config_bool(ANALOG_GEN.get("enabled"), False):
+        targets.append(str(S56_DIR / "top30_analogs.sdf"))
+    if config_bool(RETROSYNTHESIS.get("enabled"), False):
+        targets.append(str(S75_DIR / "synthesis_priority_ranking.csv"))
+    if config_bool(PUBLICATION.get("build_publication_package"), False):
+        targets.extend([
+            str(RUN_DIR / "publication" / "figures" / "captions.json"),
+            str(RUN_DIR / "publication" / "data_availability.md"),
+            str(RUN_DIR / "publication" / "reproducibility" / "artifact_manifest.json"),
+            str(RUN_DIR / "publication" / "claim_manifest.json"),
+        ])
+        if config_bool(PUBLICATION.get("emit_manuscript_draft"), False):
+            targets.append(str(RUN_DIR / "publication" / "manuscript_draft" / "02_methods.md"))
+    if config_bool(ACTIVITY_RETRIEVAL.get("required"), True):
+        targets.append(str(MANIFESTS / "activity_retrieval_operational_gate.flag"))
+    if PERFORMANCE_V2["enabled"]:
+        targets.extend([
+            str(PV2_RUN / "ranked_targets_v3_with_efficacy_and_performance_v2.csv"),
+            str(PV2_RUN / "attachment.manifest.json"),
+        ])
+    return targets
+
+rule all:
+    input:
+        mode_targets()
+
+rule stage0_complete:
+    input:
+        str(MANIFESTS / "stage0_complete.flag")
+
+rule clean_run:
+    """Wipe a specific run dir (use --config run_id=...)."""
+    run:
+        results_root = RESULTS.resolve()
+        run_dir = RUN_DIR.resolve()
+        if run_dir == results_root or run_dir.parent != results_root:
+            raise ValueError(
+                f"Refusing to clean path outside the configured results root: {run_dir}"
+            )
+        if RUN_DIR.is_symlink():
+            raise ValueError(f"Refusing to clean a symlinked run directory: {RUN_DIR}")
+        if RUN_DIR.exists():
+            shutil.rmtree(RUN_DIR)
+        RUN_DIR.mkdir(parents=True, exist_ok=False)

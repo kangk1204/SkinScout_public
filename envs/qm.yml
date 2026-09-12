@@ -1,0 +1,27 @@
+name: cosmax-qm
+channels:
+  - conda-forge
+  - pyscf
+dependencies:
+  - python=3.11
+  - xtb=6.7              # LGPL-3
+  - crest=3.0            # LGPL-3
+  - pyscf=2.7            # Apache-2.0
+  - openbabel=3.1.1
+  - libxc
+  - rdkit=2025.03
+  - numpy
+  - pandas
+  - mdtraj
+  - pip
+  - pip:
+      # 1.0.0 은 PyPI 에 없는 버전이라 이 환경을 새로 만들 수 없었다. 실제로
+      # 배포된 것은 1.0 이며, 지금 설치돼 있는 것도 그것이다.
+      - gpu4pyscf-cuda12x==1.0
+      # 이 환경에서 gpu4pyscf 는 import 되지 않는다. cupy 가 심볼릭 링크 없는
+      # 이름(libcusolver.so)으로 dlopen 하는데 pip 휠은 버전 붙은 이름
+      # (libcusolver.so.11)만 넣기 때문이다. nvidia-*-cu12 를 모두 깔고
+      # LD_LIBRARY_PATH 를 걸어도 마찬가지였다(2026-09-03 확인).
+      # stage8_dft.py 는 이 경우 CPU PySCF 로 내려앉으며, 이제 그 사실을
+      # 로그와 리포트의 compute_backend 열에 남긴다.
+      - ase==3.23.0
