@@ -1,0 +1,31 @@
+{
+  "schema_version": "skinscout.image_policy.v1",
+  "fail_closed": true,
+  "verification": "cosign",
+  "images": [
+    {
+      "name": "skinscout-app",
+      "reference": "ghcr.io/kangk1204/skinscout-app@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "certificate_identity": "release@skinscout.example",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "sbom_required": true,
+      "provenance_required": true
+    },
+    {
+      "name": "skinscout-target",
+      "reference": "ghcr.io/kangk1204/skinscout-target@sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "certificate_identity": "release@skinscout.example",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "sbom_required": true,
+      "provenance_required": true
+    },
+    {
+      "name": "skinscout-physics",
+      "reference": "ghcr.io/kangk1204/skinscout-physics@sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "certificate_identity": "release@skinscout.example",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "sbom_required": true,
+      "provenance_required": true
+    }
+  ]
+}
