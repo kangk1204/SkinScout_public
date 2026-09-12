@@ -1,0 +1,39 @@
+name: cosmax-base
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - snakemake-minimal>=8.20    # 'snakemake' meta-pkg pulls heavy extras; minimal is enough
+  - conda                      # Snakemake 9 invokes `conda info` for --use-conda
+  - mamba                      # Fast solver/front-end for operator workflows
+  - openjdk=21                 # P2Rank 2.5 (Groovy 4.0.23) rejects Java 25 (class major 69) — pin LTS 21
+  - meson                     # Build the pinned AutoGrid source snapshot
+  - ninja                     # Meson backend used for AutoGrid
+  - tcsh                      # AutoGrid parameter-header generation
+  - cxx-compiler              # Portable C++ toolchain for fresh Ubuntu installs
+  - pip
+  - pyyaml
+  - pandas>=2.2
+  - numpy>=1.26,<2
+  - scipy>=1.13
+  - pyarrow>=15
+  - rdkit>=2024.03
+  - biopython>=1.83
+  - openbabel=3.1.1            # GPL — py311 build available
+  - networkx>=3
+  - tqdm
+  - rich
+  - click
+  - jsonschema
+  - requests
+  - wget
+  - mmseqs2                    # bioconda ships 17.x / 18.x (no '15' tag)
+  - foldseek                   # optional, GPL — latest 9.x/10.x
+  - pip:
+      - dvc==3.55.2
+      # Bound the existing DVC dependency to Conda's compatible range too;
+      # the pip phase must not upgrade it beyond Conda's <0.19 requirement.
+      - ruamel.yaml>=0.17.11,<0.19
+# NOTE: P2Rank is NOT on conda. Install via scripts/setup_p2rank.sh
+#       (downloads the 2.5 release tarball from GitHub; needs the openjdk above).

@@ -1,0 +1,46 @@
+"""Versioned public contracts shared by SkinScout entry points."""
+
+from .run_profile import (
+    ANALYSIS_PROFILES,
+    BASE_PRESETS,
+    CONTEXT_PROFILES,
+    EVIDENCE_MODES,
+    MODES,
+    PRESETS,
+    RUN_MANIFEST_SCHEMA,
+    SOTA_PRESET_ALIASES,
+    AnalysisProfile,
+    ContextProfile,
+    EvidenceMode,
+    ExecutionMode,
+    NormalizedPreset,
+    RunProfile,
+    build_run_manifest_v2,
+    canonical_json_sha256,
+    migrate_run_manifest_v2,
+    resolve_run_profile,
+    validate_run_manifest_v2,
+)
+
+__all__ = [
+    "ANALYSIS_PROFILES",
+    "BASE_PRESETS",
+    "CONTEXT_PROFILES",
+    "EVIDENCE_MODES",
+    "MODES",
+    "PRESETS",
+    "RUN_MANIFEST_SCHEMA",
+    "SOTA_PRESET_ALIASES",
+    "AnalysisProfile",
+    "ContextProfile",
+    "EvidenceMode",
+    "ExecutionMode",
+    "NormalizedPreset",
+    "RunProfile",
+    "build_run_manifest_v2",
+    "canonical_json_sha256",
+    "migrate_run_manifest_v2",
+    "resolve_run_profile",
+    "validate_run_manifest_v2",
+]
+

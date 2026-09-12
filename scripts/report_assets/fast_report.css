@@ -1,0 +1,141 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: #18201d;
+  background: #f4f6f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #f4f6f5;
+}
+
+header {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  gap: 14px 20px;
+  align-items: end;
+  padding: 18px 22px;
+  border-bottom: 1px solid #cdd4d0;
+  background: #ffffff;
+}
+
+h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.meta,
+#viewer-status,
+#interaction-status {
+  margin: 0;
+  color: #53605a;
+  font-size: 13px;
+}
+
+.control {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+select,
+button,
+.download {
+  min-height: 36px;
+  border: 1px solid #9aa69f;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #18201d;
+  font: inherit;
+}
+
+select {
+  min-width: 180px;
+  padding: 6px 30px 6px 9px;
+}
+
+button {
+  padding: 6px 11px;
+  cursor: pointer;
+}
+
+button[aria-pressed="true"] {
+  border-color: #126c4b;
+  background: #126c4b;
+  color: #ffffff;
+}
+
+button:focus-visible,
+select:focus-visible,
+.download:focus-visible {
+  outline: 3px solid #efb521;
+  outline-offset: 2px;
+}
+
+.segmented,
+.downloads {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.downloads {
+  grid-column: 1 / -1;
+}
+
+.download {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  text-decoration: none;
+}
+
+main {
+  padding: 16px 22px 22px;
+}
+
+#molstar-viewer {
+  position: relative;
+  width: 100%;
+  height: min(72vh, 720px);
+  min-height: 520px;
+  border: 1px solid #69746f;
+  background: #111412;
+}
+
+#viewer-fallback {
+  padding: 14px 0;
+  color: #8b1e1e;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  header {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+    padding: 14px;
+  }
+
+  .downloads {
+    grid-column: 1;
+  }
+
+  main {
+    padding: 10px 14px 14px;
+  }
+
+  #molstar-viewer {
+    height: 68vh;
+    min-height: 420px;
+  }
+}
