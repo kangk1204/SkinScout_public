@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skinscout.local/schemas/run_manifest_v2.json",
+  "title": "SkinScout Run Manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "run_profile", "hashes", "artifact_ids"],
+  "properties": {
+    "schema_version": {"const": "skinscout.run_manifest.v2"},
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "run_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_preset",
+        "normalized_preset",
+        "execution_mode",
+        "analysis_profile",
+        "evidence_mode",
+        "context_profile",
+        "sota_claim"
+      ],
+      "properties": {
+        "requested_preset": {
+          "enum": ["stage0", "safety", "target-id", "report", "target-id-sota", "report-sota"]
+        },
+        "normalized_preset": {"enum": ["stage0", "safety", "target-id", "report"]},
+        "execution_mode": {"enum": ["fast", "comprehensive", "both"]},
+        "analysis_profile": {
+          "enum": [
+            "stage0",
+            "safety",
+            "target_fast",
+            "target_comprehensive",
+            "target_compare",
+            "report_fast",
+            "physics_full"
+          ]
+        },
+        "evidence_mode": {"enum": ["evidence", "discovery"]},
+        "context_profile": {
+          "enum": [
+            "auto",
+            "general_skin",
+            "pigmentation",
+            "anti_aging",
+            "barrier",
+            "acne",
+            "inflammation",
+            "irritation_sensitization"
+          ]
+        },
+        "sota_claim": {"type": "boolean"}
+      }
+    },
+    "hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_sha256", "config_sha256", "image_sha256", "data_sha256"],
+      "properties": {
+        "schema_sha256": {"$ref": "#/$defs/sha256"},
+        "config_sha256": {"$ref": "#/$defs/sha256"},
+        "image_sha256": {"$ref": "#/$defs/nullableSha256"},
+        "data_sha256": {"$ref": "#/$defs/nullableSha256"}
+      }
+    },
+    "artifact_ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fast_artifact_id", "physics_artifact_id", "expected_fast", "expected_physics"],
+      "properties": {
+        "fast_artifact_id": {"type": ["string", "null"], "minLength": 1},
+        "physics_artifact_id": {"type": ["string", "null"], "minLength": 1},
+        "expected_fast": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "expected_physics": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullableSha256": {
+      "anyOf": [
+        {"$ref": "#/$defs/sha256"},
+        {"type": "null"}
+      ]
+    }
+  }
+}

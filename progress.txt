@@ -1,0 +1,212 @@
+# Ralph progress log — 14_COSMAX_main
+
+## 2026-05-24 — v2 scaffold + Stage 0 background + v3 cosmetic extensions
+
+### Iteration 1 (foundation + v2)
+
+- Wrote `prd.json` (initial 10 stories) at
+  `.omc/state/sessions/a16cc8e1-8b41-410c-af03-eb26df18eefd/prd.json`.
+- Built repo skeleton: `envs/`, `data/`, `workflow/{rules,}`, `scripts/`,
+  `eval/`, `results/`, `docs/`.
+- `README.md`, `LICENSE_POLICY.md`, `docs/ARCHITECTURE.md`,
+  `docs/STAGE0_RUNBOOK.md`, `.gitignore` authored.
+- 8 conda env yml files (base, autodock_gpu, boltz2, bioemu, md, qm, viz, dti);
+  YAML-validated.
+- Top-level `workflow/Snakefile` + `workflow/config.yaml` written.
+- Stage 0 rules (`stage0_infra.smk`) + 11 Stage 0 worker scripts written and
+  passed `python -m py_compile` / `bash -n`.
+- Stage 1-2 rules + 10 scripts written. `skin_sens_decision()` covered by
+  7 unit tests (all passing).
+- Stage 3a/b/c rules + 12 scripts written. `reciprocal_rank_fusion()` covered
+  by 5 unit tests (all passing).
+- Stage 4-9 rules + 11 scripts written; Stage 9 Mol\* HTML rendering stub.
+- Stage 0 AlphaFold human proteome v4 download:
+  - first attempt 404'd on `/latest/` path — corrected to `/v4/`
+    in `workflow/config.yaml` + `scripts/stage0_download_alphafold.sh`.
+  - second attempt completed: `data/alphafold_human_v4/
+    UP000005640_9606_HUMAN_v4.tar` ≈ 4.8 GB (matches EBI catalog).
+  - `MIN_TAR_GB` resumable-skip threshold lowered 40 → 4 GB.
+
+### Iteration 2 (user-requested v3 expansion)
+
+User pasted the v3 spec mid-flight (cosmetic-discovery platform).
+`INSTRUCTIONS.md` overwritten with the v3 content; PRD extended with 8 new
+stories (US-011 … US-018).
+
+- **v3 Stage 0 extensions** (US-011, US-012)
+  - `workflow/rules/stage0_v3_skin.smk` + 4 rules.
+  - `workflow/rules/stage0_v3_cosmetic.smk` + 4 rules.
+  - Scripts: `stage0_download_hpa.sh`, `stage0_skin_proteome.py`,
+    `stage0_gtex_skin.py`, `stage0_skin_score.py`, `stage0_cosing.py`,
+    `stage0_drug_avoidance.py`, `stage0_skin_kg.py`.
+  - **SkinScore sanity test**: TYR / FLG / MMP1 / KRT14 score above the
+    proteome-wide median (4-test fixture passing).
+
+- **v3 Stage 2.5** (US-013) — Cosmetic annotation + drug avoidance
+  - `stage2_5_cosmetic_drug.smk` + 3 scripts.
+  - `classify()` and `decide()` covered by 15 tests (CosIng tier × drug-policy
+    matrix).
+
+- **v3 Stage 3** (US-014) — Skin-expression weighting + KG efficacy label
+  - `stage3_v3_skin_weight.smk`, `stage3_skin_weighting.py`,
+    `stage3_kg_efficacy_label.py`.
+  - 6 unit tests on `apply_skin_weight()` (hard-cap penalty, weight=0/1,
+    empty-input edge case).
+
+- **v3 Stage 5.5** (US-015) — Pharmacophore 4-source consensus
+  - `stage5_5_pharmacophore.smk` (6 rules) + 5 scripts.
+  - `confirm_atoms()` covered by 6 tests (3-of-4 rule + edge cases).
+
+- **v3 Stage 5.6** (US-016) — Safe analog generation
+  - `stage5_6_analog_gen.smk` + 2 scripts.
+  - `funnel_sizes()` covered by 5 tests (5000 → 500 → 300 → 250 → 30).
+
+- **v3 Stage 7.5** (US-017) — AiZynthFinder retrosynthesis
+  - `stage7_5_retrosynthesis.smk` + 2 scripts.
+  - `decide()` route rule covered by 7 tests.
+
+- **v3 Stage 11** (US-018) — Publication-ready output
+  - `stage11_publication.smk` + 3 scripts (figures, repro pack, manuscript).
+  - `stage9_report.py` extended with Panel D (INCI + drug), Panel E (analogs),
+    Panel G (retrosynthesis), Panel H (KG efficacy).
+
+- **v3 Eval harness** (US-008)
+  - `eval/leakage_check.py` (v2 three-axis).
+  - `eval/cold_start_eval.py` (v2).
+  - `eval/disagreement_eval.py` (v2).
+  - `eval/cosmetic_retrospective_eval.py` (v3 — retinol/niacinamide/etc.).
+  - `eval/skin_efficacy_recovery_eval.py` (v3 — precision/recall vs GT).
+  - `eval/analog_quality_eval.py` (v3 — recovery / novelty / RAscore).
+  - `eval/pharmacophore_conservation_eval.py` (v3 — ≥80% target).
+  - `eval/run_all.sh` wires the full Section 14+18 audit.
+
+### Final verification sweep (US-010)
+
+- Python compile (`scripts/` + `eval/`): 70 + 7 files — **0 errors**.
+- Bash syntax (`scripts/` + `eval/` `.sh`): 8 files — **0 errors**.
+- YAML validation (`envs/*.yml` + `workflow/config.yaml`): **all parse**.
+- 20 Snakemake rule files include cleanly from the top-level Snakefile
+  (73 rules total).
+- pytest: **57/57 tests pass** (split: skin-sens consensus 7 + RRF 5 + skin
+  score 4 + Stage 2.5 15 + skin weighting 6 + pharmacophore consensus 6 +
+  funnel sizing 5 + retrosynthesis decision 7 + others 2).
+- AlphaFold tar in place: `data/alphafold_human_v4/UP000005640_9606_HUMAN_v4.tar`
+  (4.8 GB, 2025-08-24).
+
+### Learnings carried forward
+
+- **`os.environ[...]` inside bash heredocs requires `export`** before the
+  here-doc (fixed in mirror_chembl.sh / mirror_drugbank.sh / mmseqs_build.sh).
+- **Defer rdkit imports** inside script functions so pure helpers (classify,
+  decide, apply_skin_weight, etc.) stay unit-testable in lean Python envs
+  without RDKit installed.
+- **AlphaFold DB URL pattern**: `/latest/UP000005640_9606_HUMAN_v4.tar` is now
+  404; correct path is `/v4/...`. Both config + script updated.
+- **Snakemake rule cross-reference**: `rules.<other>.output.foo` requires the
+  rule file to be `include:`-ed *before* any rule that references it. The
+  top-level Snakefile orders includes from Stage 0 → 11.
+- **Host hardware** (RTX 3080 Ti 12 GB / 16 cores) is below the §intro spec
+  (16 GB / 32 cores). README + ARCHITECTURE flag this; `config.yaml` carries
+  `pocket_crop_radius=20.0` and `boltz2_max_residues=700` to make Stage 5/6
+  fit.
+
+### Status
+
+All 18 PRD stories pass acceptance criteria. Stage 0 raw tarball downloaded;
+remaining Stage 0 steps (extract → pLDDT trim → P2Rank → Meeko PDBQT → ChEMBL/
+BindingDB/DrugBank mirror → MMseqs2 / HPA / CosIng / drug DB / KG) ready to run
+when the operator initiates them via `snakemake stage0_complete` and
+`snakemake stage0_v3_complete`.
+
+## 2026-05-24 — 데모 화합물(아스피린) 프론트엔드 실행 + 런타임 버그 수정
+
+cosmax-base 실제 실행으로 단위테스트가 못 잡은 런타임 버그 4종 발견·수정:
+1. stage1_standardize: rdMolStandardize.MolStandardize(없는 API) → Cleanup/FragmentParent
+2. stage1_standardize: Chem.Descriptors/Chem.Crippen → from rdkit.Chem import Descriptors, Crippen
+3. stage1_protonate: dimorphite-dl 2.x는 CLI 죽음 → protonate_smiles() 파이썬 API로 재작성
+4. AllChem.ExplicitBitVect(없음) → DataStructs.ExplicitBitVect (4파일: cosing_match,
+   drug_avoidance, daina_zoete, mini_validate). chembl_fingerprints는 annotation+Convert 수정.
+   (참고: AllChem.DataStructs.X 는 동작함 — AllChem이 DataStructs 모듈을 재노출. ExplicitBitVect만 미노출)
+
+아스피린 데모 결과 (results/runs/aspirin_demo/):
+- Stage 1: 표준화→pH7.4 탈양성자화(C(=O)O→C(=O)[O-], 화학적 정확)→conformer→canonical.
+  InChIKey BSYNRYMUTXBXSQ (아스피린 확인). xtb 미설치 → passthrough fallback 동작.
+- Stage 2: skin-sens=FLAG_HIGH (3개 web모델 미가용 → 사람검토, 올바른 degrade), PAINS 실행.
+- Stage 2.5: CosIng=NEW(t=0.11), drug scaffold match(benzene) → moderate정책 → PROCEED.
+- 단위테스트 57/57 통과 (cosmax-base, rdkit 런타임).
+
+Stage 3-9는 autodock_gpu/boltz2/qm/viz env + 모델 weights(Boltz-2/PSICHIC/GNINA/RTMScore/ESMFold)
++ Stage 0 PDBQT 수용체 필요 → Stage 0 완료 후 진행 가능.
+
+## 2026-05-24 — Stage 0 실행 디버깅 (env/도구 실전 버그 5종)
+
+실제 실행으로 드러난 인프라 버그를 순차 수정:
+1. base.yml 버전 핀 오류: p2rank(conda 없음)→GitHub 타르볼+setup_p2rank.sh, mmseqs2=15→17.x,
+   foldseek/rdkit/snakemake 핀 완화, openbabel py311 빌드 확인.
+2. ChEMBL 쿼리 정체: 7-way JOIN이 activities 풀스캔 → temp-table(rel_assays) 선필터 +
+   PRAGMA(temp_store=MEMORY/2GB cache/8GB mmap) + 청크 점진 parquet. query_only/mode=ro 제거
+   (temp 테이블 생성 위해). ※ChEMBL은 비임계경로 — p2rank를 막지 않게 분리.
+3. clean_pLDDT_trim threads 16→12, p2rank_batch threads 16→14: clean·p2rank가 단일스레드
+   ChEMBL과 병렬 실행되도록 (직렬 병목 해소). clean은 20,504개 수 분 만에 완료.
+4. P2Rank "Unsupported class file major version 69": openjdk가 Java25를 끌어옴 →
+   Groovy4.0.23이 거부. base.yml openjdk=21(LTS) 고정 + 설치.
+5. P2Rank 배치 문법 오류: `-f @list`는 무효 → 절대경로 .ds dataset을 위치인자로
+   (`prank predict proteins.ds -c alphafold -threads 14`). setup_p2rank.sh도 심링크→래퍼
+   (심링크는 classpath 깨짐).
+
+결과: P2Rank 정상 작동·매우 빠름 — 1분에 2,561 predictions.csv (20,504개 ~8분 예상,
+우려했던 24-40h 아님). pockets.json은 postprocess 단계에서 일괄 생성.
+
+## 2026-05-24 — P2Rank/Meeko 실전 버그 추가 수정 (Stage 0 완주 향해)
+
+6. P2Rank postprocess: predictions.csv 헤더/값에 선행 공백("  rank","   score") →
+   row.get() 전부 실패 → 20,504개 전부 no-pocket 오분류. 키/값 strip 추가 →
+   15,021 with-pocket(73%) / 5,483 no-pocket(27%)로 정상.
+7. meeko 0.7.x 의존성 누락: gemmi, prody pip 설치 (autodock_gpu.yml에도 기록).
+8. meeko 호출 버그: -o는 basename(.pdbqt 자동 추가) → {uid}.pdbqt.pdbqt 생성됨.
+   -o는 확장자 없는 basename + -p(rigid receptor) 플래그로 수정.
+9. meeko 0.7.x가 AlphaFold 구조 다수 거부(His 양성자화 HIE 템플릿, heavy_miss).
+   → run_meeko에 OpenBabel(`obabel -xr`) 폴백 추가. 표준구조=meeko(AD4 타이핑),
+   거부구조=obabel. 둘 다 AutoDock-GPU 호환 PDBQT. 스모크: Q6IPT2→meeko, P11171→obabel.
+
+상태: P2Rank 20,504 pockets 완료. meeko PDBQT 생성 중 (~15,021개, ~85분 예상).
+
+## 2026-05-24 — ChEMBL 쿼리 근본 수정 (2개 원인)
+
+원인 1 — 느린 쿼리: ChEMBL34 sqlite에 assays.tid 인덱스 부재 →
+  target_dictionary→assays 조인이 1.6M행 full SCAN(nested-loop) → 수 시간 정체.
+  EXPLAIN에서 `SCAN a` 확인. 다른 테이블(td/tc/cs)은 인덱스 탐.
+  수정: CREATE INDEX idx_assays_tid ON assays(tid) — 생성 1.5초, 로컬 미러라 영구.
+  결과: target→assays 조인 338,048행 0.30초, EXPLAIN `SEARCH a USING idx_assays_tid`.
+  스크립트(stage0_mirror_chembl.sh)에 인덱스 자동 보장 로직 추가 (신규 DB 대비).
+  ※주의: 지난 "정체" 진단 중 일부는 내 진단 reader가 read lock을 잡아 인덱스 생성을
+    차단("database is locked")한 것 — 인덱스 자체 생성은 1.5초로 빠름.
+
+원인 2 — pyarrow OverflowError("Python int too large to convert to C long"):
+  ChEMBL standard_value에 2^63 초과 거대값 → int64 추론 실패, 53MB까지 쓰고 크래시.
+  수정: 고정 pa.schema(act_value/pchembl=float64, 나머지 string) +
+    pd.to_numeric(errors='coerce') 강제 변환. 모든 청크가 단일 스키마 공유.
+
+진단 교훈: python print가 파일 리다이렉트 시 버퍼링 → "무출력=정체"로 오인. -u + flush 사용.
+
+## 2026-06-12 — A/B/C iteration 3 (ultracode): manuscript + Boltz-2 GPU unlock
+
+A (driver upgrade): 불필요해짐 — driver 570은 CUDA 12.8까지 지원. torch 2.4+cu121이
+  driver 570에서 GPU 작동. B가 A를 대체.
+B (cosmax-boltz env): 생성 완료. torch 2.4.0+cu121 + boltz + cuequivariance-torch.
+  핵심: pip install boltz가 torch를 2.12+cu130으로 끌어올려 driver 570과 충돌했던 것 →
+  별도 env에서 torch 2.4+cu121 고정 → GPU 작동. boltz triangular kernel은 cuequivariance
+  필요 (또는 --no_kernels). cublas는 12.1로 복원.
+  **Boltz-2 GPU 추론 성공**: 5-pair probe.
+    retinol-RAR-β   binder_prob 0.89 (vina#1 합의)
+    caffeine-ADORA2A 0.65 (vina#57 miss를 boltz가 잡음 — GPCR co-folding 강점)
+    kojic-TYR        0.57 (vina#35 miss)
+    kojic-KRT14(대조) 0.35 (비표적, 가장 낮음 ✓)
+    niacinamide-NNMT 0.25 (small-molecule 약점)
+C (manuscript): results/MANUSCRIPT.md. 멀티에이전트 Workflow(7 agents)로 fact-sheet +
+  5섹션 + adversarial review 생성 → review 지적(overclaim/numeric/caveat) 반영 +
+  검증 데이터로 수치 교정. figures 3개 (scripts/make_retrospective_figures.py).
+  Workflow Explore 에이전트가 일부 UniProt 오기 → 내 KNOWN map으로 교정.
+
+figures hang 버그: stagger 라벨의 while loop가 부동소수점 비교(ly0+gap - ly0 < gap)로
+  무한 루프. if로 교체 해결.

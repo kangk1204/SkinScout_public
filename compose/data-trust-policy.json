@@ -1,0 +1,12 @@
+{
+  "schema_version": "skinscout.data_trust_policy.v1",
+  "fail_closed": true,
+  "verification": "cosign",
+  "trusted_signers": [
+    {
+      "type": "keyless",
+      "certificate_identity": "https://github.com/kangk1204/SkinScout/.github/workflows/release.yml@refs/heads/main",
+      "issuer": "https://token.actions.githubusercontent.com"
+    }
+  ]
+}
