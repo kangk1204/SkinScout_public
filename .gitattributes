@@ -1,0 +1,5 @@
+# Preserve the exact upstream Mol* distribution bytes. Integrity is pinned in
+# scripts/report_assets/molstar/ASSET_MANIFEST.json.
+scripts/report_assets/molstar/molstar.js -text -diff
+scripts/report_assets/molstar/molstar.css -text -diff
+scripts/report_assets/molstar/LICENSE -text -diff

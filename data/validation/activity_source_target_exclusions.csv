@@ -1,0 +1,3 @@
+schema_version,source_db,source_release,source_document_key,uniprot,reason_code,source_document_url,source_document_target,database_target,reviewed_at_utc,evidence_note
+skinscout.activity-source-target-exclusions.v1,BindingDB,2026-08,patent:US20250257059,Q92932,source_document_target_mismatch,https://patents.google.com/patent/US20250257059A1/en,PTPN2; PTPN1,PTPRN2 (UniProt Q92932),2026-08-05T17:03:36Z,Primary patent identifies PTPN2 and PTPN1 rather than PTPRN2
+skinscout.activity-source-target-exclusions.v1,BindingDB,2026-08,patent:US12351648,Q9UJ71,source_document_target_mismatch,https://patents.google.com/patent/US12351648B2/en,MASP-2,CD207/Langerin (UniProt Q9UJ71),2026-08-05T17:03:36Z,Primary patent concerns MASP-2 inhibition rather than CD207/Langerin
