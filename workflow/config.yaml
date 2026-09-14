@@ -1,0 +1,497 @@
+# =============================================================================
+# COSMAX v2 Pipeline Configuration
+# =============================================================================
+
+# -- Compound input -----------------------------------------------------------
+compound_smiles: ""            # set on CLI: --config compound_smiles="..."
+compound_sdf: ""               # alternative input path
+run_id: "default_run"
+
+# -- Mode selection (see INSTRUCTIONS §6.1) ----------------------------------
+mode: "comprehensive"          # comprehensive | fast | both
+run_dti_sanity: true           # always run PSICHIC sanity-check in comprehensive
+
+# -- Paths --------------------------------------------------------------------
+paths:
+  project_root: "."
+  data_root: "data"
+  results_root: "results/runs"
+  alphafold_raw: "data/alphafold_human_v4"
+  alphafold_clean: "data/human_clean"
+  pockets: "data/human_pockets"
+  pdbqt: "data/human_pdbqt"
+  # Boxes sized from each P2Rank pocket's measured surface-atom extent
+  # (scripts/derive_docking_boxes.py). The former data/docking_boxes was a
+  # uniform 30 A cube for every receptor because pockets.json stores a
+  # constant radius fallback; it is retained only for rollback.
+  docking_boxes: "data/docking_boxes_derived"
+  no_pocket_list: "data/no_pocket_targets.list"
+  chembl: "data/chembl37"
+  bindingdb: "data/bindingdb"
+  gtopdb: "data/gtopdb"
+  pubchem: "data/pubchem"
+  discovery_aliases: "data/discovery_aliases"
+  drugbank: "data/drugbank"
+  zinc22: "data/zinc22_drug_like"
+  mmseqs: "data/mmseqs"
+  # Full, release-pinned UniProt sequences; never derive these from trimmed PDBs.
+  uniprot_human_fasta: "data/mmseqs/human_canonical.fasta"
+  manifests: "data/manifests"
+  evidence_splits: "data/evidence_splits"
+
+# -- Hardware budgets (12 GB GPU host) ---------------------------------------
+hardware:
+  gpu_vram_gb: 12              # actual; spec wanted 16
+  cpu_cores: 16
+  pocket_crop_radius: 20.0     # Å; Boltz-2/BioEmu pocket-centric crop for >500 AA
+  boltz2_max_residues: 700     # hard cap
+  esmfold_chunk_size: 128
+
+# -- Stage 0 download config --------------------------------------------------
+stage0:
+  chembl_release: 37
+  chembl_release_date: "2026-05-01"
+  bindingdb_release: "2026-08"
+  bindingdb_release_date: "2026-08-01"
+  gtopdb_release: "2026.2"
+  gtopdb_release_date: "2026-06-15"
+  gtopdb_interactions_sha256: "07bb605283dfc5356f309181737a4b15e7ecfe9e1dc53f9f4667163705d6a082"
+  gtopdb_ligands_sha256: "daaeb79ae670f2774e8e2b31cf047a32fdbf5cd434464113db6b3382af2faf42"
+  gtopdb_target_mapping_sha256: "9a931ac36b5ccf8f2acb46ec8b03b6de6cd2724f3047d03989ecdba9fb141eec"
+  gtopdb_file_descriptions_sha256: "7bf4e6876ca11b693db9f6f6a5ca21f8273ac0b7b071acd149b447c885442daa"
+  pubchem_alias_release_date: "2026-08-01"
+  pubchem_alias_smiles_md5: "da79d622703a09fb62759988b2689291"
+  pubchem_alias_smiles_url: "https://ftp.ncbi.nlm.nih.gov/pubchem/Compound/Monthly/2026-08-01/Extras/CID-SMILES.gz"
+  alphafold_url: "https://ftp.ebi.ac.uk/pub/databases/alphafold/v4/UP000005640_9606_HUMAN_v4.tar"
+  expected_tar_gb: 5         # actual EBI tarball is ~4.8 GB; extracted ≈ 50 GB
+  expected_protein_count: 20000  # minimum unique cleaned receptors after pLDDT filtering
+  plddt_remove_cutoff: 50
+  plddt_softmask_cutoff: 70
+  trim_run_length: 5           # contig of low-plddt residues at termini
+  trim_min_length: 30
+  p2rank_threads: 16
+  p2rank_min_usable_fraction: 0.50
+  meeko_threads: 8
+  mmseqs_threads: 4
+  pdbqt_min_success_fraction: 0.80
+  pdbqt_min_success_count: 1
+  allow_bindingdb_placeholder: false # true only for explicit degraded diagnostics
+  require_drugbank_source: false      # true only when licensed DrugBank enrichment is required
+  allow_drugbank_placeholder: false  # true only for explicit degraded diagnostics
+  allow_missing_training_cutoff: false # true only for explicit partial leakage diagnostics
+
+# -- Stage 1 chemistry quality gates -----------------------------------------
+stage1:
+  allow_unprotonated_fallback: false  # true only for explicit degraded dry/demo runs
+  allow_xtb_fallback: false           # true only for explicit degraded dry/demo runs
+
+# -- Stage 2 ADMET decision thresholds ----------------------------------------
+admet:
+  skin_sens_models: ["husspred", "stoptox", "pred_skin"]
+  skin_sens_halt_min_votes: 2
+  pains_action: "warn"         # warn (drop is not implemented)
+  allow_admet_ai_unavailable: false  # true only for explicit degraded dry/demo runs
+  allow_skin_sens_unavailable: false # true only for explicit degraded dry/demo runs
+
+# -- Stage 3 docking config ---------------------------------------------------
+docking:
+  autodock_runs: 20
+  autodock_local_search: "ad"
+  # Boxes are sized per pocket, so one search effort no longer means one
+  # sampling density. Above this volume the effort is raised per receptor;
+  # 27000 A^3 is a 30 A cube, the volume Vina itself warns past.
+  search_volume_advisory: 27000
+  # Measured on four derived boxes at 1.5-2.1x the advisory: efforts 4, 8 and 16
+  # each left a clashing pose and ~0.61 kcal/mol seed spread, 32 removed the
+  # clash and cut the spread to 0.030. 11.6% of derived boxes are above it.
+  high_volume_min_runs: 32
+  top_pct_to_rescore: 0.02     # 2% → ~400 targets after AutoDock-GPU
+  # Cap the comprehensive receptor set. 0 runs the whole proteome; a smaller
+  # number exercises the identical code path at a fraction of the cost, since
+  # AutoGrid alone is ~7.6 s and ~16 MB per receptor.
+  comprehensive_max_receptors: 0
+  top_n_consensus: 50
+  rrf_k: 60                    # RRF constant
+  comprehensive_rrf_recipe_id: "equal-rrf-v1"
+  comprehensive_rrf_source_weights:
+    autodock: 1.0
+    gnina: 1.0
+    rtm: 1.0
+    boltz: 1.0
+  daina_evidence_mode: "retrieval" # retrieval | leave-query-out | temporal
+  daina_quality_policy: "legacy"   # legacy | high-confidence | claim-grade
+  daina_scoring_method: "max-similarity" # max-similarity | quality-hybrid
+  daina_exclude_reference_similarity: 0.85
+  # Retrieval reads ChEMBL 37 only, which leaves 248 targets unreachable that
+  # BindingDB and GtoPdb already cover on disk. scripts/merge_runtime_activity_evidence.py
+  # builds the merged table; pointing retrieval at it is deliberately OFF, because
+  # every recovery number in docs/RESEARCHER_GUIDE.md was measured on ChEMBL alone
+  # and has to be re-measured on the merged table before it becomes the default.
+  # Only read when daina_recipe_scoring is false: the recipe path scores against
+  # the retrieval index below and never opens the mirror.
+  daina_evidence_dir: "data/chembl37"   # or data/runtime_evidence_permissive_202608
+  # Stage 3 scores with the promoted retrieval recipe (union_discount_light)
+  # rather than nearest neighbour, measured through this exact path on the
+  # 22-compound panel: Top10 14/46 -> 29/46, Top30 24/46 -> 35/46, and nothing
+  # lost - the discordance is 0:15 and 0:11 (docs/RECIPE_RUNPATH_MEASURED_20260831.md).
+  #
+  # This flag is now read by the Snakemake rule and scripts/stage3_daina_zoete.py
+  # (see scripts/tests/test_stage3_recipe_wiring.py). The recipe weights are
+  # measured through this exact path on the 22-compound panel.
+  # Set this to false to revert Stage 3 to nearest-neighbour scoring against
+  # daina_evidence_dir; daina_recipe_path is then ignored.
+  daina_recipe_scoring: true
+  # Selected on the 22-compound skin panel among recipes the dev gate qualified.
+  # It discounts analogues whose only measurements sit at or below the activity
+  # threshold rather than excluding them: max_union_nonneg maximises over a
+  # subset of max_union_any's edges, so a negative-only edge earns 0.30 and a
+  # non-negative one earns 0.45.
+  #
+  # That distinction matters because "negative" here is the 5.0 cut, not
+  # biology. Excluding those edges (union_nonneg_consensus) put three tyrosinase
+  # pairs in Top30 but sent EGCG -> MMP2 from 8 to 56: EGCG's nearest MMP2
+  # analogues sit at similarity 0.727 with pActivity 4.06-4.66. Discounting
+  # keeps both - tyrosinase 3/4 inside Top30 and MMP2 at 14.
+  #
+  #   nearest neighbour       Top10 14  Top30 24  TYR 2/4
+  #   union_any_consensus     Top10 29  Top30 34  TYR 2/4
+  #   union_nonneg_consensus  Top10 26  Top30 34  TYR 3/4  (loses EGCG -> MMP2)
+  #   union_discount_light    Top10 28  Top30 35  TYR 3/4  (loses nothing)
+  #
+  # dev_gate_score 0.4527, behind union_any_consensus at 0.4607 and ahead of the
+  # exclusion variant at 0.4376. dev_selection/recipe.json now records the same
+  # operator choice (selection_basis=operator_choice_among_dev_qualified), so the
+  # pipeline evaluates exactly the file this config ships and the operational gate
+  # can bind it. The dev_selection_skin copy is kept for comparison.
+  daina_recipe_path: "results/eval/activity_retrieval_202608/dev_selection/recipe.json"
+  # Built from the run-path evidence, not the benchmark splits. Building it from
+  # the benchmark instead cost alpha-arbutin its tyrosinase hit (rank 2 -> 70):
+  # the benchmark is missing CHEMBL1760462, arbutin's closest measured analogue,
+  # along with the whole publication it comes from. Evaluation stays on the
+  # benchmark index; production reads this one.
+  #
+  # ChEMBL 37 + BindingDB's own curation (2026-08-31): 4,873 targets against
+  # 4,659, and 417,804 more measurements. Against the ChEMBL-only index it gains
+  # two pairs at Top10 and loses one at Top30 - hydroquinone -> tyrosinase, 23 to
+  # 33 - and neither difference is significant (p=0.5, p=1). Against the
+  # nearest-neighbour behaviour this replaced, nothing is lost: Top10 14->29,
+  # Top30 24->34, discordance 0:15 and 0:10.
+  #
+  # It is also the first index with BindingDB edges in it, so source_consensus6
+  # - which the promoted recipe weights at 0.10 - stops being identically zero.
+  # Rows BindingDB re-imports from ChEMBL are removed by (structure, target), not
+  # by InChIKey string: BindingDB computes its keys without stereo, so the string
+  # comparison matched nothing and 151,552 pairs held one measurement twice.
+  #
+  # GtoPdb is built but not the default. It adds 33 further targets and carries
+  # ODbL 1.0 / CC BY-SA 4.0; LICENSE_POLICY.md admits CC-BY and says nothing
+  # about share-alike, and that is not an obligation to put on every run by
+  # default for 33 targets. If you accept it, point this at
+  # data/activity_retrieval_runtime_gtopdb_202608 - same recipe, same schema.
+  daina_recipe_index_dir: "data/activity_retrieval_runtime_merged_202608"
+  min_sources_comprehensive: 3 # require 3 of 4 scorers for 4-way consensus
+  allow_psichic_unavailable: false # true only for explicit degraded dry/demo runs
+  psichic_batch_size: 512      # ESM feature precompute batch; scoring is chunked below
+  psichic_score_batch_size: 8  # GPU graph scoring chunk size
+  psichic_esm_short_batch_size: 4  # RTX 3080 Ti-safe ESM batch for <=300 aa
+  psichic_esm_medium_batch_size: 2 # RTX 3080 Ti-safe ESM batch for <=500 aa
+  psichic_esm_long_batch_size: 1   # RTX 3080 Ti-safe ESM batch for <=700 aa
+  psichic_max_sequence_length: 700 # split longer PSICHIC sequences into windows
+  diffdock_for_no_pocket: true
+  fast_mode_autodock_runs: 4          # Vina/AutoDock exhaustiveness for fast mode
+  fast_mode_daina_top_n: 256          # frozen Daina-primary structural annotation set
+  fast_mode_autodock_max_receptors: 256 # must cover the selected Daina set
+  # Measured on the 15-compound panel, leave-query-out, 28 known pairs
+  # (docs/RERANK_EXPERIMENT_20260828.md): re-ranking the whole list is worse
+  # than not re-ranking, but holding the similarity head and re-ordering ranks
+  # 11-50 moves top-30 recovery from 14/28 to 20/28. Set band <= keep to
+  # disable and keep the pure similarity order.
+  fast_mode_rerank_keep: 10           # ranks 1..keep stay in similarity order
+  fast_mode_rerank_band: 50           # keep+1..band are re-ordered by RRF
+  # Only the re-ranking band's scores are ever consulted, so the rest is
+  # computed and discarded. Measured 2026-08-28: 256 targets take about 35
+  # minutes per compound, 40 take about 6. Set false to grid all 256 (the
+  # published behaviour up to this point).
+  fast_mode_dock_band_only: true
+  fast_mode_autogrid_spacing: 0.375   # AutoDock4 grid spacing in Angstrom
+  fast_mode_autogrid_cache: "~/.cache/skinscout/autogrid"   # expanded by Snakefile at runtime
+
+# -- Stage 5 Boltz-2 ----------------------------------------------------------
+boltz2:
+  num_seeds: 5
+  num_recycles: 3
+  msa_source: "colabfold_cache"
+  iptm_threshold: 0.6
+  pocket_plddt_threshold: 75
+
+# -- Stage 6 BioEmu ----------------------------------------------------------
+bioemu:
+  num_conformers: 1000
+  # Independent apo samples: rigid-aligned coordinate k-means, not tICA.
+  kmeans_k: 8
+  ensemble_dock_top_n: 10
+
+# -- Stage 7 MD --------------------------------------------------------------
+md:
+  forcefield: "amber14sb"
+  ligand_ff: "openff_sage_2.2"
+  duration_ns: 50
+  num_replicas: 3
+  timestep_fs: 2.0
+  top_n_for_md: 3
+  complex_pose: ""             # single-target pose; use complex_pose_manifest for top-N
+  complex_pose_manifest: ""     # TSV: target_id\tcomplex_pose
+  ligand_topology: ""           # optional validated include-compatible .itp
+  gmx_command: "gmx"
+  acpype_command: "acpype"
+
+# -- Stage 8 QM --------------------------------------------------------------
+qm:
+  semi_empirical: "gfn2"
+  # PySCF 는 wB97X-D3 를 블랙리스트에 둔다. 지원되는 대응은 D3BJ 감쇠판이며,
+  # PySCF 안에서 wB97X-V + D3BJ 로 풀린다.
+  dft_functional: "wB97X-D3BJ"
+  dft_basis: "def2-TZVP"
+  top_n_for_qm: 3
+
+# -- Evaluation cutoff (Section 14) ------------------------------------------
+evaluation:
+  common_cutoff_date: "2023-10-01"     # Boltz-2 cutoff + safety margin
+  leakage:
+    seq_id_threshold: 0.30
+    ligand_tanimoto_threshold: 0.50
+    pocket_sucos_threshold: 0.50
+  thresholds:
+    cold_start_min_recall_at_50: 0.01
+    cosmetic_retro_min_mean_top10: 0.01
+    skin_efficacy_min_mean_precision: 0.01
+    skin_efficacy_min_mean_recall: 0.01
+    analog_min_recovery: 0.01
+    analog_min_novelty: 0.80
+    analog_min_mean_ra_score: 0.70
+    pharmacophore_min_preserved_fraction: 0.80
+  sota:
+    enabled: false
+    default_context_profile: "auto"   # auto | general_skin | pigmentation | anti_aging | barrier | acne | inflammation | irritation_sensitization
+    skin_known_target_panel: "data/validation/skin_known_target_panel.csv"
+    skin_known_target_rankings_dir: "results/eval/rankings/skin_known_target"
+    skin_known_min_case_top10: 0.80
+    skin_known_min_target_top10: 0.50
+    skin_known_min_target_top30: 0.60
+  activity_retrieval:
+    required: true
+    benchmark_dir: "data/activity_benchmark_202608"
+    retrieval_index_dir: "data/activity_retrieval_202608"
+    panels_dir: "data/activity_recovery_panels_202608"
+    rcsb_release_cutoff: "2021-01-01"
+    rcsb_min_nonpolymer_mw: 50.0
+    rcsb_raw_jsonl_gz: "data/rcsb_holo_20210101/holo_contacts.jsonl.gz"
+    rcsb_snapshot_manifest: "data/rcsb_holo_20210101/manifest.json"
+    rcsb_panel_pairs: "data/rcsb_holo_20210101/panel_pairs.parquet"
+    rcsb_panel_exclusions: "data/rcsb_holo_20210101/panel_exclusions.csv"
+    rcsb_ranking_queries: "data/rcsb_holo_20210101/ranking_queries.parquet"
+    rcsb_panel_manifest: "data/rcsb_holo_20210101/panel_manifest.json"
+    rcsb_contact_coordinate_dir: "data/rcsb_holo_20210101/contact_coordinates"
+    rcsb_contact_fragment_dir: "data/rcsb_holo_20210101/contact_pocket_fragments"
+    rcsb_contact_fragment_index: "data/rcsb_holo_20210101/contact_pocket_fragments_index.csv"
+    rcsb_contact_fragment_exclusions: "data/rcsb_holo_20210101/contact_pocket_fragments_exclusions.csv"
+    rcsb_contact_fragment_manifest: "data/rcsb_holo_20210101/contact_pocket_fragments.manifest.json"
+    rcsb_contact_context_residues: 2
+    rcsb_contact_download_retries: 3
+    rcsb_contact_download_timeout: 30.0
+    prior_pocket_targets: "data/evidence_splits/evidence_target_clusters_2026_02.csv"
+    prior_pocket_target_manifest: "data/evidence_splits/evidence_target_clusters_2026_02.manifest.json"
+    prior_pocket_fragment_dir: "data/pocket_fragments_202608"
+    prior_pocket_fragment_index: "data/pocket_fragments_202608_index.csv"
+    prior_pocket_fragment_exclusions: "data/pocket_fragments_202608_exclusions.csv"
+    prior_pocket_fragment_manifest: "data/pocket_fragments_202608_manifest.json"
+    prior_pocket_context_residues: 2
+    prior_pocket_min_fragment_residues: 12
+    prior_pocket_p2rank_params: "data/human_pockets/params.txt"
+    prior_pocket_p2rank_version: "2.5"
+    rcsb_contact_pocket_leakage_rows: "results/audits/rcsb_contact_pocket_leakage_rows.csv"
+    rcsb_contact_pocket_leakage_manifest: "results/audits/rcsb_contact_pocket_leakage.manifest.json"
+    pocket_leakage_foldseek: "foldseek"
+    pocket_leakage_threads: 16
+    benchmark_target_clusters: "data/evidence_splits/screenable_target_clusters_2026_02.csv"
+    benchmark_target_cluster_manifest: "data/evidence_splits/screenable_target_clusters_2026_02.manifest.json"
+    source_target_exclusions: "data/validation/activity_source_target_exclusions.csv"
+    screenable_target_clusters: "data/evidence_splits/screenable_target_clusters_2026_02.csv"
+    screenable_target_cluster_manifest: "data/evidence_splits/screenable_target_clusters_2026_02.manifest.json"
+    dev_selection_dir: "results/eval/activity_retrieval_202608/dev_selection"
+    final_evaluation_dir: "results/eval/activity_retrieval_202608/test_evaluation"
+    known_panel: "data/validation/skin_known_target_panel.csv"
+    dev_query_count: 256
+    test_query_count: 256
+    dual_cold_min_queries: 100
+    dual_cold_min_targets: 20
+    dual_cold_min_documents: 20
+    dual_cold_max_target_fraction: 0.20
+    dual_cold_min_effective_targets: 10.0
+    calibration_cap: 1024
+    negative_threshold: 5.0
+    positive_threshold: 6.0
+    exclude_reference_similarity: 0.85
+    allow_no_improvement: false # true only for explicit diagnostic artifact generation
+    # 운영자 선택(operator choice): dev 게이트를 통과한 후보 중 무엇을 출하할지.
+    # 비우면 dev 점수 1위를 그대로 쓴다. docking.daina_recipe_path가 이 선택의
+    # 산출물(dev_selection/recipe.json)을 가리켜야 선택·평가·게이트가 같은 파일을
+    # 본다 - 다르면 create-operational이 sha256 불일치로 실패한다.
+    prefer_recipe: "union_discount_light"
+    prefer_recipe_rationale: >-
+      Selected on the 22-compound skin panel rather than dev-gate score. Discounts
+      analogues measured at or below the activity threshold rather than excluding
+      them: keeps three tyrosinase pairs inside Top30 (hydroquinone 28) while
+      returning EGCG -> MMP2 to 14, and loses no pair against nearest-neighbour
+      scoring. Top30 35/46, the best of any candidate measured.
+  performance_v2:
+    # Additive research branch. Enabling this never replaces the frozen E0
+    # fallback; promotion requires the separate preregistered dev gate.
+    enabled: false
+    mode: "production"             # production | fixture
+    train_benchmark: "data/activity_benchmark_202608/train.parquet"
+    retrieval_ligands: "data/activity_retrieval_202608/ligands.parquet"
+    target_fasta: "data/evidence_splits/target_clusters_aug30_2026_02_all_seqs.fasta"
+    target_clusters: "data/evidence_splits/screenable_target_clusters_2026_02.csv"
+    evaluation_panel_manifest: "data/activity_recovery_panels_202608/manifest.json"
+    dev_ranking_queries: "data/activity_recovery_panels_202608/dev_ranking_queries.parquet"
+    dev_calibration_pairs: "data/activity_recovery_panels_202608/dev_calibration_pairs.parquet"
+    dual_cold_ranking_queries: "data/activity_recovery_panels_202608/dual_cold_ranking_queries.parquet"
+    output_dir: "data/performance_v2_202608"
+    evaluation_dir: "results/eval/performance_v2_202608"
+    molformer_checkpoint: "ibm-research/MoLFormer-XL-both-10pct"
+    molformer_revision: "compat-v4"
+    esm2_checkpoint: "esm2_t30_150M_UR50D"
+    esm2_revision: "main"
+    ligand_batch_size: 16
+    protein_batch_size: 8
+    training_batch_size: 2048
+    hidden_dim: 512
+    epochs: 20
+    learning_rate: 0.001
+    seeds: [17, 42, 73]
+    rerank_top_k: 512
+    structure_top_k: 64
+    boltz_top_k: 3
+    boltz_max_residues: 700
+    max_peak_vram_gib: 11.5
+    max_trainable_parameters: 10000000
+
+# =============================================================================
+# v3 extensions (Cosmetic Discovery Platform)
+# =============================================================================
+
+# -- v3 cosmetic DB build mode ------------------------------------------------
+# full:        mirror public EC CosIng if cosing.csv is absent + live PubTator
+#              queries. DrugBank XML is optional licensed enrichment; ChEMBL/
+#              Orange Book can satisfy approved-drug avoidance when claim-quality
+#              gates pass.
+# placeholder: emit small seeded stubs for explicit CI/demo DAG validation only.
+cosmetic_db_mode: "full"
+
+skin_expression:
+  # HPA is downloaded by Stage 0 and is the default SkinScore base.
+  # Set these true only when optional enrichment sources must be operator-supplied.
+  require_proteome_source: false
+  require_gtex_source: false
+  allow_empty_sources: false
+
+# -- v3 paths -----------------------------------------------------------------
+paths_v3:
+  hpa: "data/hpa"
+  skin_proteome: "data/skin_proteome"
+  gtex: "data/gtex_v10"
+  scrnaseq: "data/scrnaseq_skin"
+  skin_expression: "data/skin_expression"
+  cosing: "data/cosing"
+  drug_avoidance: "data/drug_avoidance"
+  skin_kg: "data/skin_efficacy_kg"
+  pharmacophore_smarts: "data/pharmacophore_smarts"
+
+# -- v3 Stage 3 weighting -----------------------------------------------------
+skin_weight: 0.30                # docking_rrf 0.7 + skin_score 0.3 (default)
+skin_min_threshold: 0.05         # below → 70 % penalty (hard-cap)
+known_target_priors:             # known-compound priors from curated panel
+  enabled: false
+  source_csv: data/validation/skin_known_target_panel.csv
+  supplemental_source_csv: ""     # optional comma-separated extra known-compound panels
+  weight: 0.00                 # weight for exact known compound-target priors
+  min_score: 0.00              # minimum prior score included in final weighting
+  power: 1.0                   # exponent on known-target prior scores
+  similarity_enabled: false     # enable fallback similarity matches when exact smiles match fails
+  similarity_threshold: 0.85    # Morgan fingerprint Tanimoto cutoff for fallback matches
+  prior_combination_strategy: max # aggregate exact + multiple evidence rows: max|sum_capped|bayesian_or
+  morgan_radius: 2             # Morgan fingerprint radius for fallback matching
+  morgan_n_bits: 2048          # Morgan bit-vector size for fallback matching
+  similarity_score_power: 1.0   # extra shaping of similarity score before weighting
+  max_similarity_candidates: 0  # max fallback similar rows to apply (0 = unlimited)
+
+# -- v3 Stage 2.5 cosmetic + drug avoidance ----------------------------------
+cosing:
+  auto_mirror_public_api: true  # false only when an operator CosIng CSV is mandatory
+  allow_missing_reference: false # true only for explicit degraded diagnostics
+  exact_threshold: 1.0
+  similar_threshold: 0.85
+  analog_threshold: 0.65
+
+drug_avoidance:
+  allow_missing_reference: false # true only for explicit degraded diagnostics
+  chembl_dir: "data/chembl37"
+  orange_book: "data/drug_avoidance/orange_book.csv"
+  drugbank_approved_parquet: "data/drugbank/drugbank_approved.parquet"
+  drug_policy: "moderate"        # strict | moderate | lenient
+  strict_threshold: 0.85
+  soft_threshold: 0.65
+  downweight_factor: 0.50
+
+# -- v3 Stage 5.5 pharmacophore ----------------------------------------------
+pharmacophore:
+  consensus_min_votes: 2         # 2 of 2 PLIP + ProLIF bound-pose interaction sources
+  allow_empty_interaction_sources: false # true only for explicit degraded diagnostics
+
+# -- v3 Stage 5.6 analog generation ------------------------------------------
+analog_gen:
+  enabled: false                 # opt-in; requires pinned REINVENT4 assets below
+  reinvent_mode: "mol2mol"       # mol2mol | libinvent | linkinvent
+  reinvent_executable: ""        # executable path, pinned outside the repository
+  reinvent_model_manifest: ""     # JSON artifact manifest with SHA-256 entries
+  reinvent_config: ""             # upstream-compatible TOML/JSON config
+  reinvent_plugin_manifest: ""    # command_args + required plugin files
+  reinvent_seed: 49242
+  reinvent_timeout_seconds: 3600
+  finetune:
+    enabled: false                 # opt-in local transfer-learning preparation
+    train_smiles: ""               # frozen training .smi
+    holdout_smiles: ""             # frozen hold-out .smi
+    prior: ""                      # pinned REINVENT prior artifact
+    agent: ""                      # fine-tune output agent artifact
+    staged_config: ""              # fine-tune output staged-learning config
+    plugin_manifest: ""             # fine-tune output/adapter plugin manifest
+    command_template: ""            # explicit command with supported placeholders
+    allow_empty_output: false       # true only for explicit diagnostics
+  allow_empty_reinvent_output: false # true only for explicit degraded diagnostics
+  num_generated: 5000
+  funnel_admet: 500
+  funnel_aizynth: 300
+  funnel_drug: 250
+  funnel_boltz: 30
+
+# -- v3 Stage 7.5 retrosynthesis ---------------------------------------------
+retrosynthesis:
+  enabled: false                 # opt-in
+  executable: "aizynthcli"
+  config: ""                    # pinned AiZynthFinder YAML
+  model_manifest: ""             # JSON artifact manifest with SHA-256 entries
+  stock_manifest: ""             # JSON stock artifact manifest with SHA-256 entries
+  iteration_limit: 100
+  time_limit_s: 120
+  max_transforms: 6
+
+# -- v3 Stage 11 publication output ------------------------------------------
+publication:
+  build_publication_package: false   # opt-in
+  emit_manuscript_draft: false
+  allow_placeholders: false
+  skin_efficacy_kg_doi: pending      # set real 10.x DOI for claim-quality package
+  pipeline_source_url: https://github.com/kangk1204/SkinScout_public
+  draft_doi_ok: false                # true only for explicit draft diagnostics

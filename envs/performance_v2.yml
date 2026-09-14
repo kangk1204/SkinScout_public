@@ -1,0 +1,23 @@
+name: cosmax-performance-v2
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11.15
+  - numpy=1.26.4
+  - pandas=2.3.3
+  - scipy=1.13.1
+  - scikit-learn=1.6.1
+  - pyarrow=21.0.0
+  - rdkit=2025.03.6
+  - pip
+  - pip:
+      # Match the qualified RTX 3080 Ti host explicitly. The frozen encoders
+      # run under no_grad; only the small pair head is trained.
+      - --extra-index-url https://download.pytorch.org/whl/cu130
+      - torch==2.12.1+cu130
+      - fair-esm==2.0.0
+      # MoLFormer uses its upstream compat-v4 revision with Transformers v4.
+      - transformers==4.44.2
+      - huggingface-hub==0.36.0
+      - safetensors==0.6.2

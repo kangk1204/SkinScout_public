@@ -1,0 +1,21 @@
+name: cosmax-autodock-gpu
+channels:
+  - conda-forge
+  - bioconda
+  - nvidia
+dependencies:
+  - python=3.11
+  - rdkit=2025.03
+  - openbabel=3.1.1
+  - numpy
+  - pandas
+  - pyyaml
+  - tqdm
+  - meeko=0.7.1       # LGPL-2.1 (0.7.x receptor prep needs gemmi + prody)
+  - gemmi>=0.7        # meeko receptor structure parsing
+  - prody>=2.6        # meeko PDB reader backend
+  - vina=1.2.7        # Apache-2.0
+# AutoDock-GPU itself is not published on the conda-forge/bioconda/nvidia
+# channels. Put `autodock_gpu_128wi` on PATH or install a local build under
+# `tools/autodock_gpu/bin/`; the runtime scripts and readiness preflight check
+# those locations explicitly.
