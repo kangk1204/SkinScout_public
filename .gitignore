@@ -1,0 +1,116 @@
+# --- Stage 0 infrastructure (large, regenerable) ---
+data/alphafold_human_v4/
+data/human_clean/
+data/human_pockets/
+data/human_pdbqt/
+data/docking_boxes/
+data/docking_boxes_*/
+data/docking_boxes_*.manifest.json
+data/docking_boxes_*_exclusions.csv
+data/no_pocket_targets.list
+data/chembl34/
+data/chembl37/
+data/bindingdb/
+data/gtopdb/
+data/pubchem*/
+data/discovery_aliases/
+data/evidence_splits/
+data/activity_benchmark_*/
+data/activity_retrieval_*/
+# 대체소재 검색이 쓰는 압축 지문 인덱스. 272 MB이고 활성 검색 인덱스에서
+# 언제든 다시 만들 수 있다: scripts/build_similarity_index.py
+data/similarity_index_*/
+data/activity_recovery_panels_*/
+# Regenerable from the mirrors by scripts/merge_runtime_activity_evidence.py;
+# ~1 GB of parquet, and its manifest records the inputs it was built from.
+data/runtime_evidence_merged_*/
+# The licence tier that ships: ChEMBL + BindingDB-curated, ~590 MB.
+data/runtime_evidence_permissive_*/
+# Regenerable retrieval indexes (~270 MB each); their manifests record the
+# source table and sha256 they were built from.
+data/activity_retrieval_production_*/
+data/activity_retrieval_runtime_*/
+data/rcsb_holo_*/
+data/pocket_clusters_*/
+data/pocket_fragments_*/
+data/.pocket_fragments_*.staging/
+data/.pocket_clusters_*.staging/
+data/pocket_fragments_*_index.csv
+data/pocket_fragments_*_exclusions.csv
+data/pocket_fragments_*_manifest.json
+data/drugbank/
+data/zinc22_drug_like/
+data/mmseqs/
+data/manifests/
+
+# --- Per-run results (regenerable from inputs) ---
+results/runs/
+results/eval/
+results/eval_*/
+results/tmp/
+results/audits/
+results/validation/
+
+# --- Snakemake bookkeeping ---
+.snakemake/
+
+# Local download/install artifacts
+SkinScout-main.zip
+micromamba.tar.bz2
+*.snakemake.log
+.snakemake_timestamp
+
+# --- Common Python / conda detritus ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.so
+*.o
+*.a
+
+# --- Heavy binary structure / model artifacts ---
+*.pdbqt
+*.h5
+*.ckpt
+*.pt
+*.safetensors
+*.dcd
+*.xtc
+*.trr
+*.edr
+*.tpr
+
+# --- IDE & OS ---
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# --- Logs (Stage 0 download logs kept in progress.txt instead) ---
+*.log
+results/logs/*.pid
+!progress.txt
+
+# P2Rank standalone tarball (not on conda)
+tools/
+
+# --- v3 Stage 0 데이터 (재생성 가능, 다운로드 산출물) ---
+data/cosing/
+data/drug_avoidance/
+data/hpa/
+data/gtex_v10/
+data/scrnaseq_skin/
+data/skin_efficacy_kg/
+data/skin_expression/
+data/skin_proteome/
+data/pharmacophore_smarts/
+
+# micromamba 가 환경을 만들 때 yml 옆에 pip 요구사항을 임시 파일로 적어 둔다.
+# 설치가 중간에 끊기면 남는다.
+envs/mamba*
+
+# 재실행 산출물(맵 수십 GB). 저장소에 들어가면 안 된다.
+work/

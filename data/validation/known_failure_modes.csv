@@ -1,0 +1,4 @@
+uniprot,gene,failure_mode,cofactor,evidence_source
+P14679,TYR,missing_metal_cofactor,Cu2+ x2 (dinuclear copper centre),results/RETROSPECTIVE.md
+P08253,MMP2,missing_metal_cofactor,Zn2+ (catalytic + structural),results/RETROSPECTIVE.md
+P14780,MMP9,missing_metal_cofactor,Zn2+ (catalytic + structural),results/RETROSPECTIVE.md

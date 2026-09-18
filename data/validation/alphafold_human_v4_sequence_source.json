@@ -1,0 +1,18 @@
+{
+  "schema_version": "skinscout.protein-sequence-source.v1",
+  "source": {
+    "name": "AlphaFold Protein Structure Database human proteome",
+    "version": "v4",
+    "proteome_id": "UP000005640",
+    "taxon_id": "9606",
+    "archive_url": "https://ftp.ebi.ac.uk/pub/databases/alphafold/v4/UP000005640_9606_HUMAN_v4.tar",
+    "license": "CC BY 4.0",
+    "license_url": "https://alphafold.ebi.ac.uk/faq"
+  },
+  "sequence_artifact": {
+    "path": "../mmseqs/human_clean.fasta",
+    "sha256": "ecde39e61c4b81e72b37006c94f7b4008c5af47fe58fe961f861dc57b8cb5844",
+    "accession_count": 20171,
+    "derivation": "Sequences reconstructed deterministically from the pLDDT-trimmed AlphaFold v4 human-proteome PDB snapshot."
+  }
+}

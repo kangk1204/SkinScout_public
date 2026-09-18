@@ -1,0 +1,62 @@
+name: skinscout
+
+services:
+  app:
+    image: ghcr.io/kangk1204/skinscout-app@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    init: true
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      SKINSCOUT_BIND_HOST: "127.0.0.1"
+      SKINSCOUT_DATA_DIR: "/opt/skinscout/data/current"
+      SKINSCOUT_RESULTS_DIR: "/opt/skinscout/results"
+    volumes:
+      - "${SKINSCOUT_HOST_DATA_DIR:-${HOME}/.local/share/skinscout/data}:/opt/skinscout/data:ro"
+      - "${SKINSCOUT_HOST_RESULTS_DIR:-${HOME}/.local/share/skinscout/results}:/opt/skinscout/results"
+      - "${HOME}/.local/share/skinscout/cache:/opt/skinscout/cache"
+      - "${HOME}/.local/share/skinscout/secrets/worker-api.token:/run/secrets/skinscout_worker_api:ro"
+    depends_on:
+      target:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  target:
+    image: ghcr.io/kangk1204/skinscout-target@sha256:1111111111111111111111111111111111111111111111111111111111111111
+    init: true
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "all"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+      SKINSCOUT_DATA_DIR: "/opt/skinscout/data/current"
+    volumes:
+      - "${SKINSCOUT_HOST_DATA_DIR:-${HOME}/.local/share/skinscout/data}:/opt/skinscout/data:ro"
+      - "${SKINSCOUT_HOST_RESULTS_DIR:-${HOME}/.local/share/skinscout/results}:/opt/skinscout/results"
+      - "${HOME}/.local/share/skinscout/cache:/opt/skinscout/cache"
+      - "${HOME}/.local/share/skinscout/secrets/worker-api.token:/run/secrets/skinscout_worker_api:ro"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  physics:
+    image: ghcr.io/kangk1204/skinscout-physics@sha256:2222222222222222222222222222222222222222222222222222222222222222
+    profiles:
+      - physics
+    init: true
+    gpus: all
+    environment:
+      NVIDIA_VISIBLE_DEVICES: "all"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+      SKINSCOUT_DATA_DIR: "/opt/skinscout/data/current"
+    volumes:
+      - "${SKINSCOUT_HOST_DATA_DIR:-${HOME}/.local/share/skinscout/data}:/opt/skinscout/data:ro"
+      - "${SKINSCOUT_HOST_RESULTS_DIR:-${HOME}/.local/share/skinscout/results}:/opt/skinscout/results"
+      - "${HOME}/.local/share/skinscout/cache:/opt/skinscout/cache"
+      - "${HOME}/.local/share/skinscout/secrets/worker-api.token:/run/secrets/skinscout_worker_api:ro"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
