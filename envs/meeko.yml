@@ -1,0 +1,15 @@
+name: cosmax-meeko
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - rdkit=2025.03
+  - openbabel=3.1.1
+  - numpy
+  - pandas
+  - pyyaml
+  - tqdm
+  - meeko=0.7.1
+  - gemmi>=0.7
+  - prody>=2.6
+  - pip

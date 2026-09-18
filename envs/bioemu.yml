@@ -1,0 +1,26 @@
+name: cosmax-bioemu
+channels:
+  - conda-forge
+  - pytorch
+  - nvidia
+dependencies:
+  - python=3.11
+  # pytorch-cuda=12.1 은 nvidia 채널의 libcublas 핀과 충돌해 이 환경이 아예
+  # 만들어지지 않았다. conda-forge 의 pytorch-gpu 는 CUDA 런타임을 함께
+  # 끌어오며 sm_86(RTX 3080 Ti)에서 동작한다.
+  - pytorch-gpu=2.4
+  - numpy
+  - pandas
+  - scikit-learn
+  - mdtraj=1.10
+  - rdkit=2025.03
+  - pip
+  - pip:
+      # 1.0.0 은 PyPI 에서 yanked 된 프리릴리스다(사유: pre-release).
+      # 이 패키지는 콘솔 스크립트를 만들지 않는다 - stage6_bioemu.py 는
+      # python -m bioemu.sample 로 부른다.
+      - bioemu==1.4.1          # MIT
+      - alphaflow              # MIT
+      # pyemma 는 이 저장소 어디서도 import 하지 않는데 C++11 컴파일러가 필요한
+      # 소스 빌드라 이 환경에서 실패하고, 그 바람에 실제로 쓰는 bioemu 까지
+      # 설치되지 않았다. stage6_bioemu.py 는 bioemu 를 서브프로세스로 부른다.

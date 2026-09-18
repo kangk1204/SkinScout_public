@@ -1,0 +1,52 @@
+name: cosmax-md
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  # CUDA 빌드를 명시한다. conda-forge 의 최신 GROMACS 는 OpenCL 빌드이고,
+  # 2026 부터 NVIDIA OpenCL 지원이 빠져서 이 머신의 RTX 3080 Ti 를
+  # "0 compatible GPUs" 로 본다. 그러면 MD 가 전부 CPU 로 돌아 47,226 원자짜리
+  # 계에서 11.5 ns/day 였고, config 의 기본값인 50 ns × 3 복제가 13일이 된다.
+  # 즉 설정에 적힌 대로는 돌 수 없는 상태였다.
+  #
+  # CUDA 빌드가 있는 최신 버전이 2022.4 다. 같은 계에서 251.6 ns/day - 22배이고,
+  # 50 ns × 3 복제가 약 14시간이 된다(2026-09-04 실측). 4년 된 버전이지만
+  # amber99sb-ildn/tip3p 표준 MD 에는 충분하고, 대안은 "GPU 를 못 쓰는 최신판"이다.
+  - gromacs=2022.4=nompi_cuda*   # LGPL-2.1
+  - openmm=8.1            # MIT
+  - openff-toolkit=0.16
+  - openff-forcefields=2024.09
+  - acpype=2023.10        # GPL — isolated env
+  - ambertools=23
+  - mdtraj=1.10
+  - mdanalysis=2.7
+  - parmed=4.2
+  - mpi4py            # gmx_MMPBSA 가 요구한다. pip 빌드는 이 머신에서 실패한다
+  - tqdm
+  - openmpi
+  - h5py
+  - seaborn
+  - matplotlib
+  - scipy
+  # ambertools 23 은 libboost <=1.85 를, rdkit 2025.03 은 >=1.86 을 요구해서
+  # 이 환경은 풀리지 않았다. stage7 은 rdkit 을 직접 import 하지 않고 acpype 를
+  # 서브프로세스로 부르므로, 두 조건을 함께 만족하는 2024.03 으로 맞춘다.
+  - rdkit=2024.03
+  - numpy
+  - pandas
+  - pip
+  - pip:
+      # gmx-mmpbsa 의 의존성(matplotlib, mpi4py, numpy, pandas, parmed, scipy,
+      # seaborn, tqdm)은 위의 conda 목록이 전부 먼저 채운다. 그래야 pip 이
+      # mpi4py 를 소스에서 빌드하려 들지 않는다 - 이 머신에는 MPI 컴파일러가
+      # 없어 휠 빌드가 실패하고, 그러면 gmx_MMPBSA 가 통째로 설치되지 않는다.
+      #
+      # 예전에 `- "--no-deps"` 를 여기 적었는데 그렇게는 안 된다. conda 는 pip
+      # 목록을 requirements 파일로 넘기고, pip 은 그 줄을 **패키지 이름으로**
+      # 읽는다: `ERROR: Invalid requirement: --no-deps`. 환경 자체가 만들어지지
+      # 않는다(2026-09-05 실측).
+      - gmx-mmpbsa==1.6.4   # GPL-3, run as subprocess
+      # alchemlyb 는 이 저장소 어디서도 쓰지 않는데 pandas>=2.1 을 요구해서
+      # pandas==1.5.3 을 요구하는 gmx-mmpbsa 와 충돌했고, 그 탓에 이 환경의
+      # pip 단계 전체가 실패했다. 실제로 쓰는 것은 gmx_MMPBSA 쪽이다.

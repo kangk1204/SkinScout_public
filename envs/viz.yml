@@ -1,0 +1,29 @@
+name: cosmax-viz
+channels:
+  - conda-forge
+  - bioconda
+  - schrodinger      # PyMOL OSS only — no commercial Schrödinger packages pulled
+dependencies:
+  - python=3.11
+  - pymol-open-source=3.0   # BSD-style
+  - plip=2.3                 # GPL-2 — isolated, called as subprocess
+  - rdkit=2025.03
+  - biopython
+  - jinja2=3.1
+  - numpy
+  - pandas
+  - matplotlib
+  - pillow
+  - seaborn
+  # prolif 2.0.3 은 pkg_resources 를 import 한다. setuptools 81 이 그것을
+  # 제거했으므로 dti.yml 과 같은 상한을 둔다.
+  - "setuptools<81"
+  - pip
+  - pip:
+      - prolif==2.0.3            # Apache-2.0
+      # Mol* 는 pip 패키지가 아니라 scripts/report_assets/molstar/ 에 벤더링한
+      # JS 번들로 들어간다. 예전에 여기 적혀 있던 molstar-renderer 는 PyPI 에
+      # 존재하지 않아 이 환경 전체가 만들어지지 않았고, 그래서 stage 9 리포트와
+      # stage 11 그림이 한 번도 생성된 적이 없다.
+      - playwright==1.62.0       # Apache-2.0; drives the pinned local Chrome report gate
+      - plotly==5.24.1
