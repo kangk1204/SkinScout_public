@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skinscout.local/schemas/target_fast_v2.json",
+  "title": "SkinScout Daina-primary target-fast v2 CSV row",
+  "description": "One deserialized row from 03_targets/mode_fast/daina_structural_targets.csv. Daina rank and score are primary; all other evidence is annotation-only.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "recipe_id",
+    "target_id",
+    "target_name",
+    "daina_rank",
+    "daina_score",
+    "daina_score_is_probability",
+    "daina_primary_json",
+    "structural_status",
+    "structure_supported",
+    "structure_annotation_json",
+    "skin_kg_annotation_json",
+    "experimental_annotation_json",
+    "final_score",
+    "source_count",
+    "sources"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "skinscout.target_fast.v2"
+    },
+    "recipe_id": {
+      "const": "daina-structural-overlay-v1"
+    },
+    "target_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "daina_rank": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "daina_score": {
+      "type": "number"
+    },
+    "daina_score_is_probability": {
+      "const": false
+    },
+    "daina_primary_json": {
+      "type": "string",
+      "minLength": 2
+    },
+    "structural_status": {
+      "enum": [
+        "structure_supported",
+        "structural_unavailable_no_pocket",
+        "structural_unavailable_prep",
+        "structural_unavailable_invalid",
+        "structure_failed_map",
+        "structure_failed_docking",
+        "structure_failed_gnina",
+        "structure_not_requested"
+      ]
+    },
+    "structure_supported": {
+      "type": "boolean"
+    },
+    "structure_source": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "pocket_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "autodock_energy_kcal_mol": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "gnina_cnn_affinity": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "structure_annotation_json": {
+      "type": "string",
+      "minLength": 2
+    },
+    "skin_kg_annotation_json": {
+      "type": "string",
+      "minLength": 2
+    },
+    "experimental_annotation_json": {
+      "type": "string",
+      "minLength": 2
+    },
+    "final_score": {
+      "type": "number"
+    },
+    "source_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sources": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "not": {
+    "anyOf": [
+      {
+        "required": [
+          "probability"
+        ]
+      },
+      {
+        "required": [
+          "calibrated_probability"
+        ]
+      }
+    ]
+  }
+}

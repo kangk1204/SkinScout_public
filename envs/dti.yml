@@ -1,0 +1,34 @@
+name: cosmax-dti
+channels:
+  - conda-forge
+  - bioconda
+  - pytorch
+dependencies:
+  - python=3.11
+  # Stage 1/2 safety and cosmetic gates must stay CPU-runnable; GPU target-ID
+  # models run through envs/boltz2.yml and envs/autodock_gpu.yml.
+  - pytorch=2.4=*cpu*
+  - numpy
+  - pandas
+  - pyarrow>=15
+  - scikit-learn
+  - rdkit=2025.03
+  - requests
+  - biopython
+  - fair-esm=2.0.0           # ESM-2 DTI backbones
+  - transformers=4.44        # ChemBERTa
+  # hyperopt still imports pkg_resources; setuptools 81+ removed that surface.
+  - "setuptools<81"
+  - pip
+  - pip:
+      - admet-ai==1.4.0          # MIT
+      - dimorphite-dl==2.0.2     # Apache-2.0
+      # STopTox uses a CLI only if one is already installed; the repo wrapper
+      # otherwise uses the public API/web fallback, so do not pin a nonexistent
+      # stoptox-cli package here.
+      # ConPLex/DrugBAN are optional ensemble candidates, but this repo does
+      # not import them yet and conplex==1.0.0 is not installable from PyPI.
+      # Add them in a dedicated env when a concrete adapter lands.
+      # HuSSPred / Pred-Skin / Skin Doctor II: web-API only — no install
+      # PSICHIC runs through the repo-local adapter in envs/boltz2.yml.
+      # GNINA is an external binary on PATH; RTMScore runs through envs/boltz2.yml.
