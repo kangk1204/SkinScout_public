@@ -1,0 +1,152 @@
+{
+  "schema_version": "skinscout.baseline-freeze.v1",
+  "created_at_utc": "2026-08-12T11:26:46Z",
+  "purpose": "Release 1 preimplementation baseline for compatibility, data, models, and scientific evaluation",
+  "repository": {
+    "branch": "harden-workflow-gates",
+    "head_commit": "f5a871524634f03b49eef129f90667a299012c1d",
+    "head_tree": "b0adc01362ae8b2af291aaa8e23e7ef057c89bc1",
+    "parents": [
+      "14044510d12d017d7f5697a746408b2304e53852",
+      "bf2877f8d49d8a8f46b9fb4b69398841c3c3d804"
+    ],
+    "merged_origin_main_commit": "bf2877f8d49d8a8f46b9fb4b69398841c3c3d804",
+    "merged_origin_main_tree": "0c831411160459f7aa12b59402b52186ad125fe3",
+    "merge_content_changed": false,
+    "remote_fetch": {
+      "status": "not_verified",
+      "reason": "GitHub credentials were unavailable to the build process; the locally cached origin/main ref was used"
+    }
+  },
+  "verification": {
+    "pytest": {
+      "command": "micromamba run -p /home/keunsoo/.local/share/micromamba/envs/cosmax-base python -m pytest -q scripts/tests",
+      "status": "passed",
+      "passed": 1891,
+      "failed": 0,
+      "duration_seconds": 526.83
+    },
+    "compileall": {
+      "command": "micromamba run -p /home/keunsoo/.local/share/micromamba/envs/cosmax-base python -m compileall -q scripts eval workbench",
+      "status": "passed"
+    },
+    "stage0_claim_quality": {
+      "command": "micromamba run -p /home/keunsoo/.local/share/micromamba/envs/cosmax-base python scripts/stage0_verify.py --strict --claim-quality",
+      "status": "passed",
+      "passed": 18,
+      "failed": 0
+    },
+    "target_fast_data_readiness": {
+      "command": "micromamba run -p /home/keunsoo/.local/share/micromamba/envs/cosmax-base python scripts/data_readiness.py --preset target-id --mode fast --json",
+      "status": "ok"
+    },
+    "target_fast_pipeline_readiness": {
+      "command": "micromamba run -p /home/keunsoo/.local/share/micromamba/envs/cosmax-base python scripts/pipeline_readiness.py --smiles CCO --run-id ethanol_target_fast_full --preset target-id --mode fast --json",
+      "status": "ok",
+      "known_gap": "The current readiness contract accepts a working Torch CUDA device but does not detect the host nvidia-smi NVML driver/library mismatch"
+    },
+    "legacy_completed_run": {
+      "command": "micromamba run -p /home/keunsoo/.local/share/micromamba/envs/cosmax-base python scripts/run_skinscout.py --smiles CCO --run-id ethanol_target_fast_full --preset target-id --mode fast --no-use-conda --verify-existing-run",
+      "status": "failed",
+      "run_id": "ethanol_target_fast_full",
+      "reason": "03_targets/mode_fast/autodock_top5k.tsv lacks degraded, engine, map_coverage_complete, map_coverage_denominator, and map_coverage_numerator",
+      "run_summary_sha256": "a780d7914b15004b4c3f12283d8702e9069c6c2376db65e59f50c6e9b263881a",
+      "run_verification_sha256": "a853962e05537f61874341d765f03358d8cb13792d382158c27042a62b55964c"
+    },
+    "legacy_goal_contract": {
+      "command": "micromamba run -p /home/keunsoo/.local/share/micromamba/envs/cosmax-base python scripts/verify_goal_contract.py --run-dir results/runs/ethanol_target_fast_full --smiles CCO --json",
+      "status": "failed",
+      "reason": "The fresh underlying run verifier status is failed"
+    }
+  },
+  "host_observation": {
+    "qualification_status": "not_qualified",
+    "os": "Ubuntu 26.04 LTS",
+    "kernel": "7.0.0-22-generic",
+    "cpu": "13th Gen Intel Core i7-13700K",
+    "memory_bytes": 132379099136,
+    "gpu": "NVIDIA GeForce RTX 3080 Ti",
+    "nvidia_kernel_module_version": "595.71.05",
+    "nvml_library_version": "595.84",
+    "nvidia_smi_status": "failed_driver_library_mismatch",
+    "torch_cuda_status": "available",
+    "reference_sla_host": false,
+    "note": "This host cannot qualify the Ubuntu 24.04, RTX 4090 Release 1 SLA."
+  },
+  "compatibility_surface": {
+    "aggregate_sha256": "8ea5309bb70415423f708015fd141bdb6f1363e0ea9ef01aba81f791f01f4145",
+    "hash_command": "sha256sum scripts/run_skinscout.py scripts/pipeline_readiness.py scripts/data_readiness.py scripts/model_readiness.py scripts/safety_readiness.py scripts/verify_run_outputs.py scripts/verify_goal_contract.py scripts/start_workbench.py workbench/server.py workbench/static/index.html workbench/static/app.js workbench/static/styles.css workflow/Snakefile workflow/config.yaml workflow/rules/*.smk | sha256sum",
+    "cli_help_sha256": {
+      "run_skinscout": "8201a4ddc35bf1d9b7d4f3ebacf8354fe8a7bca99a91db2dd23ffcc0b3465803",
+      "pipeline_readiness": "e9b0cbafb8d6f3b298c2bdc68105b6da2903cfbf262b243eab38dc681d4589e7",
+      "data_readiness": "a294f8d5e8f9f75c1438cf8cbb93cdcd105271797e8f46a3999615b92dcbebaf",
+      "model_readiness": "d1335fae437a862727400b59f71cc3060dbdfa23c54ad44f7a742da5760b0756",
+      "safety_readiness": "aaab47254ab47c9fa076b355634d7c04df55cfc0ecbd7254863f5dcc4cf2779a",
+      "verify_run_outputs": "06191c2fabeeb5e5ffc67945ec5d65e291dd920f61833a3d96fb7c3d1eb68aa1",
+      "verify_goal_contract": "5c1ee6169c624049e890f4d6b0391a6462dce7b0e5d00d4fea6d63fc6c5552c4"
+    },
+    "legacy_schemas": [
+      "skinscout.run_summary.v1",
+      "skinscout.run_verification.v1",
+      "skinscout.goal_contract.v1"
+    ]
+  },
+  "environment_surface": {
+    "aggregate_sha256": "5af07d94942a0e9cc687c4718df259217bb4c8e5572309394d026cfdc3dc5e8d",
+    "hash_command": "sha256sum envs/*.yml envs/cosmax-boltz-freeze.txt | sha256sum"
+  },
+  "data_surface": {
+    "data_bytes": 122764526299,
+    "results_bytes": 288830195,
+    "manifest_aggregate_sha256": "b2d44a6f8dded627ba145ad1e58e61f129486319591c0e711bc92639102803a4",
+    "manifests": {
+      "data/activity_benchmark_202608/manifest.json": "0367906f6e417d8489fc3161a72240d0ed1ae2cfd92f0395cd5979bfedb4cfbe",
+      "data/activity_recovery_panels_202608/manifest.json": "532d1c11689de13f35a3b22cf8a6839c6e489215025bef28342922b00c2d146c",
+      "data/activity_retrieval_202608/manifest.json": "991b81ac5f6673073a128b9b13c54cd2ded3f10a0c6a42cee9039493830b733d",
+      "data/bindingdb/evidence_202608/manifest.json": "257c2cb75819d15a2c2f828b569b46374ccfedc75cb8b3f14d009e8a3aadd8c6",
+      "data/chembl37/fingerprint_manifest.json": "18080ad9edc06b19c172adc1507348e12bc73de954761560043786d0fce161b6",
+      "data/chembl37/source_manifest.json": "29c32fa6a1fa227739799f477d91da4ad43018783f68899a4997b5d95b4fc332",
+      "data/cosing/cosing_api_manifest.json": "9a28737166f0255ef3e671ad13c12c9a46f50a232737ba4152ff74aa1c05dec9",
+      "data/cosing/cosing_ingest_manifest.json": "e6a2915443b17d5d35076503600f7f3f011df923341cc77ae37817c242cb2a5f",
+      "data/evidence_splits/target_sequence_embeddings_esm2_t6_2026_02.manifest.json": "0e01080c3d734d2f310348818c55833c9e758057a138c5822479617ef552baf7",
+      "data/gtopdb/evidence_v1/manifest.json": "3363ad5b465f0c4993ce7a1ef61781b1a211b39a7916224ad3ceac9e25837b65",
+      "data/gtopdb/source_manifest.json": "c10bf52826b4cbe33a353be8973d81e753c156139befb161562f11c57792a833",
+      "data/mmseqs/training_cutoff_manifest.json": "db91434ea0ac1c550e731cf2c1e8e01151708b5198d244a2237da1250aadcba0",
+      "data/pocket_fragments_202608_manifest.json": "b030caba1ef0b9d91758afd05a28301bb915f25d8ebd8a68f2070d4c348dff1d"
+    },
+    "sequence_embedding": {
+      "model": "esm2_t6_8M_UR50D",
+      "checkpoint_sha256": "46f002a9870c9bdecd0ea887acb1f9a38a6b561e8f8bf8a6990b679b9d31b928",
+      "rows": 20204,
+      "artifact_sha256": "26b059034603ca5713abe8edf6a6f599c3505bf79f745c49ef67c8f0fe76716d"
+    }
+  },
+  "scientific_baseline": {
+    "evaluation_summary_path": "results/eval/activity_retrieval_202608/test_evaluation/summary.json",
+    "evaluation_summary_sha256": "c1a7cdbe1c544d9c7bf65d5a21393f14398b3d64e477248f4f7aca6cffa52c5a",
+    "selected_recipe_id": "union_p6_max",
+    "passes_frozen_test_gate": false,
+    "temporal_test_2025": {
+      "top10": 0.7475409836065574,
+      "top30": 0.7967213114754098,
+      "mrr": 0.6035682019751614
+    },
+    "full_known_skin_panel_15_cases": {
+      "top10": 0.25,
+      "top30": 0.5,
+      "mrr": 0.14527661057575966,
+      "passes": false
+    },
+    "dual_cold": {
+      "top10": 0.0,
+      "top30": 0.0,
+      "mrr": 0.00028209053221638607
+    },
+    "calibration": {
+      "brier": 0.06834237295372532,
+      "log_loss": 0.2563729500912414,
+      "ece10": 0.026982802381516742
+    },
+    "claim": "No SOTA or prospective performance claim is supported by this baseline."
+  }
+}
