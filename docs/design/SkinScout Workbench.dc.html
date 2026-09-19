@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap" rel="stylesheet"/>
+<style>
+  html,body{margin:0;padding:0;background:#06101e;color:#e6eefb;font-family:Inter,ui-sans-serif,system-ui;-webkit-font-smoothing:antialiased;font-size:14px}
+  *{box-sizing:border-box}
+  .material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:400;font-size:18px;line-height:1;display:inline-block;white-space:nowrap;-webkit-font-feature-settings:'liga';-webkit-font-smoothing:antialiased}
+  .mono{font-family:'Space Grotesk',ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+  a{color:#5b8def}a:hover{color:#8fb4ff}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:6px}
+  @keyframes ssping{0%{transform:scale(.7);opacity:.9}80%,100%{transform:scale(2.2);opacity:0}}
+  @keyframes ssbar{0%{background-position:0 0}100%{background-position:28px 0}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</helmet>
+
+<div style="display:flex;flex-direction:column;height:100vh;overflow:hidden;background:#06101e">
+
+  <!-- TOPBAR -->
+  <div style="height:56px;flex-shrink:0;background:#0a1626;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;padding:0 22px;gap:14px">
+    <div style="display:flex;align-items:center;gap:9px">
+      <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true"><defs><linearGradient id="ssg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#b9c7e4"/><stop offset="100%" stop-color="#00dbe7"/></linearGradient></defs><g fill="none" stroke="url(#ssg)" stroke-width="1.9" stroke-linecap="round"><circle cx="13.5" cy="13.5" r="8"/><path d="M19.4 19.4L27 27"/><path d="M13.5 9.8v7.4M9.8 13.5h7.4"/></g><circle cx="13.5" cy="13.5" r="1.7" fill="#00dbe7"/></svg>
+      <span style="font-family:'Space Grotesk';font-weight:600;font-size:15px;color:#fff;letter-spacing:.03em">SkinScout</span>
+      <span style="font-family:'Space Grotesk';font-size:11px;color:#5d6a7e;letter-spacing:.14em;text-transform:uppercase;padding-left:8px;border-left:1px solid rgba(255,255,255,0.1);margin-left:2px">Workbench</span>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-radius:20px;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.22);white-space:nowrap;flex-shrink:0">
+        <span style="position:relative;width:7px;height:7px;flex-shrink:0"><span style="position:absolute;inset:0;border-radius:50%;background:#4ade80"></span><span style="position:absolute;inset:0;border-radius:50%;background:rgba(74,222,128,.5);animation:ssping 2.4s cubic-bezier(0,0,.2,1) infinite"></span></span>
+        <span class="mono" style="font-size:11px;color:#4ade80;letter-spacing:.06em">환경 준비됨</span>
+      </div>
+      <div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;color:#9aa5b8"><span class="material-symbols-outlined" style="font-size:18px">help</span></div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex:1;min-height:0">
+    <!-- LEFT RAIL -->
+    <div style="width:238px;flex-shrink:0;background:#0a1626;border-right:1px solid rgba(255,255,255,0.07);padding:16px 12px;display:flex;flex-direction:column;gap:3px">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.16em;color:#5d6a7e;text-transform:uppercase;padding:6px 12px 8px">작업 / Workflow</div>
+      <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="6">
+        <div style="{{ item.style }}" onClick="{{ item.onClick }}">
+          <span class="material-symbols-outlined" style="{{ item.iconStyle }}">{{ item.icon }}</span>
+          <span style="display:flex;flex-direction:column;line-height:1.2;flex:1">
+            <span style="font-weight:600;font-size:13.5px;white-space:nowrap">{{ item.ko }}</span>
+            <sc-if value="{{ showEn }}" hint-placeholder-val="{{ true }}"><span style="font-size:10.5px;color:#5d6a7e;font-family:'Space Grotesk';letter-spacing:.02em;white-space:nowrap">{{ item.en }}</span></sc-if>
+          </span>
+          <sc-if value="{{ item.badge }}"><span class="mono" style="{{ item.badgeStyle }}">{{ item.badge }}</span></sc-if>
+        </div>
+      </sc-for>
+      <div style="margin-top:auto;padding:12px;border-radius:8px;background:#0e1b2e;border:1px solid rgba(255,255,255,0.06)">
+        <div style="font-size:11px;color:#9aa5b8;margin-bottom:6px;display:flex;align-items:center;gap:6px"><span class="material-symbols-outlined" style="font-size:15px;color:#5b8def">history</span>현재 실행 / Active run</div>
+        <div class="mono" style="font-size:11px;color:#e6eefb">retinol-20260826T09</div>
+        <div class="mono" style="font-size:10.5px;color:#5d6a7e;margin-top:2px">FAST · target-id</div>
+      </div>
+    </div>
+
+    <!-- MAIN -->
+    <div style="flex:1;min-width:0;overflow-y:auto;position:relative">
+      <div style="max-width:1180px;margin:0 auto;padding:28px 34px 60px">
+
+        <!-- ============ SETUP ============ -->
+        <sc-if value="{{ isSetup }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:.16em;color:#00dbe7;text-transform:uppercase;margin-bottom:8px">시작하기 · Getting started</div>
+          <h1 style="font-family:'Space Grotesk';font-weight:600;font-size:27px;margin:0 0 6px;letter-spacing:-.01em">환경을 준비합니다</h1>
+          <p style="color:#9aa5b8;font-size:14.5px;margin:0 0 26px;max-width:640px">터미널을 몰라도 됩니다. 아래 4단계만 끝나면 바로 분석을 시작할 수 있어요.</p>
+
+          <div style="display:flex;gap:0;margin-bottom:28px">
+            <sc-for list="{{ setupSteps }}" as="s" hint-placeholder-count="4">
+              <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:center;gap:0">
+                  <span style="{{ s.dot }}">{{ s.mark }}</span>
+                  <sc-if value="{{ s.line }}"><span style="flex:1;height:2px;background:{{ s.lineColor }}"></span></sc-if>
+                </div>
+                <div style="padding-right:16px">
+                  <div style="font-weight:600;font-size:13.5px;color:{{ s.textColor }}">{{ s.ko }}</div>
+                  <div class="mono" style="font-size:10.5px;color:#5d6a7e;margin-top:2px">{{ s.en }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:18px">
+            <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:22px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px"><span class="material-symbols-outlined" style="color:#f0a83c;font-size:20px">download_for_offline</span><span style="font-weight:600;font-size:15px">데이터·모델 준비 중 / Preparing data & model</span></div>
+              <p style="color:#9aa5b8;font-size:13px;margin:8px 0 16px;line-height:1.55">종합 표적 인프라(Stage 0)를 내려받는 중입니다. <b style="color:#e6eefb">안전성·빠른 표적 분석은 지금 바로 돌릴 수 있습니다.</b> 종합 분석은 준비가 끝나면 열립니다.</p>
+              <div style="height:8px;border-radius:5px;background:#08131f;overflow:hidden;margin-bottom:6px"><div style="width:82%;height:100%;background:linear-gradient(90deg,#0b6b62,#00dbe7);border-radius:5px"></div></div>
+              <div class="mono" style="font-size:11px;color:#5d6a7e;display:flex;justify-content:space-between"><span>AlphaFold proteome + ChEMBL + P2Rank pockets</span><span style="color:#9aa5b8">82% · ~40분 남음</span></div>
+              <div style="margin-top:18px;padding:12px 14px;border-radius:8px;background:#08131f;border:1px solid rgba(255,255,255,0.06)">
+                <div style="font-size:11px;color:#5d6a7e;margin-bottom:6px;letter-spacing:.05em">최초 설치 명령 (한 번만 복사) / First install</div>
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><code class="mono" style="font-size:12px;color:#8fb4ff">bash install_skinscout.sh</code><span style="display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:6px;background:rgba(0,219,231,0.1);color:#00dbe7;font-size:11px;cursor:pointer;border:1px solid rgba(0,219,231,0.25)"><span class="material-symbols-outlined" style="font-size:14px">content_copy</span>복사</span></div>
+              </div>
+            </div>
+            <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:22px;display:flex;flex-direction:column">
+              <div style="font-weight:600;font-size:14px;margin-bottom:14px">지금 가능한 작업 / Available now</div>
+              <div style="display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span class="material-symbols-outlined" style="color:#4ade80;font-size:18px">check_circle</span>안전성 분석 <span class="mono" style="color:#5d6a7e;font-size:11px">safety</span></div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span class="material-symbols-outlined" style="color:#4ade80;font-size:18px">check_circle</span>빠른 표적 분석 <span class="mono" style="color:#5d6a7e;font-size:11px">fast</span></div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:#9aa5b8"><span class="material-symbols-outlined" style="color:#f0a83c;font-size:18px">pending</span>종합 표적 분석 <span class="mono" style="color:#5d6a7e;font-size:11px">comprehensive</span></div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px"><span class="material-symbols-outlined" style="color:#4ade80;font-size:18px">check_circle</span>근거 보고서 <span class="mono" style="color:#5d6a7e;font-size:11px">report</span></div>
+              </div>
+              <button onClick="{{ goNew }}" style="margin-top:auto;background:#00dbe7;color:#06101e;border:0;padding:11px;border-radius:8px;font-weight:600;font-size:13.5px;cursor:pointer;font-family:inherit">새 분석 시작 →</button>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ============ NEW ANALYSIS ============ -->
+        <sc-if value="{{ isNew }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:.16em;color:#00dbe7;text-transform:uppercase;margin-bottom:8px">새 분석 · New analysis</div>
+          <h1 style="font-family:'Space Grotesk';font-weight:600;font-size:27px;margin:0 0 26px;letter-spacing:-.01em">화합물 하나를 분석합니다</h1>
+
+          <div style="display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start">
+            <div style="display:flex;flex-direction:column;gap:20px;flex:2 1 440px;min-width:0">
+
+              <!-- input -->
+              <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden">
+                <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;gap:10px"><span style="width:22px;height:22px;border-radius:50%;background:rgba(0,219,231,0.14);color:#00dbe7;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700" class="mono">1</span><span style="font-weight:600;font-size:14px">화합물 입력 / Compound input</span></div>
+                <div style="padding:18px">
+                  <div style="display:flex;gap:0;margin-bottom:16px;background:#08131f;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:3px;width:fit-content">
+                    <div onClick="{{ pickSmiles }}" style="{{ smilesTabStyle }}">SMILES 붙여넣기</div>
+                    <div onClick="{{ pickSdf }}" style="{{ sdfTabStyle }}">SDF 파일</div>
+                  </div>
+
+                  <sc-if value="{{ isSmiles }}" hint-placeholder-val="{{ true }}">
+                  <div>
+                    <div style="width:100%;min-height:70px;background:#08131f;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:12px;color:#8fb4ff;font-family:'Space Grotesk',ui-monospace,monospace;font-size:13px;line-height:1.6;word-break:break-all">{{ smilesValue }}</div>
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#4ade80"><span class="material-symbols-outlined" style="font-size:16px">verified</span>유효한 단일 저분자 · Canonical SMILES 확인됨</div>
+                  </div>
+                  </sc-if>
+                  <sc-if value="{{ isSdf }}">
+                  <div style="border:1.5px dashed rgba(255,255,255,0.16);border-radius:8px;padding:26px;text-align:center;background:#08131f">
+                    <span class="material-symbols-outlined" style="font-size:30px;color:#5d6a7e">upload_file</span>
+                    <div style="font-size:13px;color:#9aa5b8;margin-top:8px">SDF 파일을 여기에 놓거나 클릭해 선택</div>
+                    <div class="mono" style="font-size:10.5px;color:#5d6a7e;margin-top:6px">파일은 브라우저에만 유지 · SHA256 해시만 기록</div>
+                  </div>
+                  </sc-if>
+
+                  <div style="display:flex;align-items:center;gap:10px;margin-top:16px">
+                    <span style="font-size:11px;color:#5d6a7e">예시 / Examples:</span>
+                    <sc-for list="{{ examples }}" as="ex">
+                      <span onClick="{{ ex.onClick }}" style="{{ ex.style }}">{{ ex.name }}</span>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:16px 22px;padding:14px 18px;border-top:1px solid rgba(255,255,255,0.07);background:#0b1728">
+                  <div style="min-width:64px"><div style="font-size:10px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">화학식</div><div class="mono" style="font-size:13px;margin-top:2px;white-space:nowrap">C₂₀H₃₀O</div></div>
+                  <div style="min-width:64px"><div style="font-size:10px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">분자량</div><div class="mono" style="font-size:13px;margin-top:2px;white-space:nowrap">286.45 Da</div></div>
+                  <div style="min-width:64px"><div style="font-size:10px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">무거운 원자</div><div class="mono" style="font-size:13px;margin-top:2px;white-space:nowrap">21</div></div>
+                  <div style="min-width:56px"><div style="font-size:10px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.08em;white-space:nowrap">회전 결합</div><div class="mono" style="font-size:13px;margin-top:2px;white-space:nowrap">5</div></div>
+                  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#4ade80;white-space:nowrap"><span class="material-symbols-outlined" style="font-size:16px">check_circle</span>적용 범위 내 · In domain</div>
+                </div>
+              </div>
+
+              <!-- question -->
+              <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden">
+                <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;gap:10px"><span style="width:22px;height:22px;border-radius:50%;background:rgba(0,219,231,0.14);color:#00dbe7;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700" class="mono">2</span><span style="font-weight:600;font-size:14px">분석 질문 / Analysis question</span></div>
+                <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px">
+                  <sc-for list="{{ questions }}" as="q" hint-placeholder-count="3">
+                    <div onClick="{{ q.onClick }}" style="{{ q.style }}">
+                      <span style="{{ q.radio }}"><sc-if value="{{ q.active }}"><span style="width:9px;height:9px;border-radius:50%;background:#00dbe7"></span></sc-if></span>
+                      <div style="flex:1"><div style="font-weight:600;font-size:13.5px;color:#e6eefb">{{ q.ko }}</div><div style="font-size:12px;color:#9aa5b8;margin-top:2px">{{ q.desc }}</div></div>
+                      <span class="mono" style="font-size:10.5px;color:#5d6a7e;align-self:flex-start;margin-top:2px">{{ q.token }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <!-- depth -->
+              <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden">
+                <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;gap:10px"><span style="width:22px;height:22px;border-radius:50%;background:rgba(0,219,231,0.14);color:#00dbe7;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700" class="mono">3</span><span style="font-weight:600;font-size:14px">분석 깊이 / Depth</span></div>
+                <div style="padding:16px 18px;display:flex;gap:12px">
+                  <sc-for list="{{ depths }}" as="d" hint-placeholder-count="3">
+                    <div onClick="{{ d.onClick }}" style="{{ d.style }}"><div style="font-weight:600;font-size:13.5px">{{ d.ko }}</div><div style="font-size:11.5px;color:#9aa5b8;margin-top:3px">{{ d.desc }}</div><div class="mono" style="font-size:10.5px;color:#5d6a7e;margin-top:6px">{{ d.est }}</div></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+
+            <!-- review sidebar -->
+            <div style="position:sticky;top:0;background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;flex:1 1 320px;min-width:0">
+              <div style="padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.07);font-weight:600;font-size:14px">실행 검토 / Review & submit</div>
+              <div style="padding:18px;display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#9aa5b8">입력 / Input</span><span class="mono">Retinol</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#9aa5b8">질문 / Question</span><span class="mono" style="color:#00dbe7">{{ reviewQ }}</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#9aa5b8">깊이 / Depth</span><span class="mono">{{ reviewD }}</span></div>
+                <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#9aa5b8">예상 계산 / Compute</span><span class="mono">{{ reviewEst }}</span></div>
+                <div style="height:1px;background:rgba(255,255,255,0.07)"></div>
+                <div style="display:flex;gap:10px;padding:12px;border-radius:8px;background:rgba(240,168,60,0.07);border:1px solid rgba(240,168,60,0.22)">
+                  <span class="material-symbols-outlined" style="color:#f0a83c;font-size:18px;flex-shrink:0">info</span>
+                  <span style="font-size:12px;color:#d9c3a0;line-height:1.5">표적 순위는 실험으로 확인할 <b>가설</b>이며, 증명이 아니라 in silico 예측 결과입니다.</span>
+                </div>
+                <button onClick="{{ submitRun }}" style="background:#00dbe7;color:#06101e;border:0;padding:13px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px"><span class="material-symbols-outlined" style="font-size:18px">play_arrow</span>분석 시작 / Run</button>
+                <div style="text-align:center;font-size:11px;color:#4ade80;display:flex;align-items:center;justify-content:center;gap:6px"><span class="material-symbols-outlined" style="font-size:14px">check_circle</span>준비 완료 · 차단 요소 없음</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ============ RUN MONITOR ============ -->
+        <sc-if value="{{ isRun }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px">
+            <div>
+              <div style="font-size:11px;font-weight:600;letter-spacing:.16em;color:#00dbe7;text-transform:uppercase;margin-bottom:8px">실행 중 · Running</div>
+              <h1 style="font-family:'Space Grotesk';font-weight:600;font-size:27px;margin:0 0 6px;letter-spacing:-.01em">{{ runTitle }}</h1>
+              <div class="mono" style="font-size:12px;color:#5d6a7e">retinol-20260826T09 · FAST · target-id</div>
+            </div>
+            <div style="text-align:right">
+              <div style="{{ runStatusStyle }}">{{ runStatusText }}</div>
+              <div class="mono" style="font-size:22px;margin-top:8px;color:#e6eefb">{{ runElapsed }}</div>
+              <div style="font-size:11px;color:#5d6a7e;margin-top:2px">경과 시간 / Elapsed</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 360px;gap:22px;align-items:start">
+            <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:8px 20px 12px">
+              <sc-for list="{{ runStages }}" as="st" hint-placeholder-count="6">
+                <div style="display:flex;gap:16px;padding:14px 0;border-bottom:1px solid {{ st.divider }}">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:6px"><span style="{{ st.dot }}">{{ st.mark }}</span><sc-if value="{{ st.rail }}"><span style="width:2px;flex:1;background:{{ st.railColor }};min-height:14px"></span></sc-if></div>
+                  <div style="flex:1;padding-bottom:2px">
+                    <div style="display:flex;align-items:center;gap:10px"><span style="font-weight:600;font-size:13.5px;color:{{ st.textColor }}">{{ st.ko }}</span><span class="mono" style="font-size:10.5px;color:#5d6a7e">{{ st.en }}</span><span style="margin-left:auto" class="mono">{{ st.timeTag }}</span></div>
+                    <sc-if value="{{ st.note }}"><div style="font-size:12px;color:{{ st.noteColor }};margin-top:4px">{{ st.note }}</div></sc-if>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:18px">
+              <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden">
+                <div style="padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between"><span style="font-weight:600;font-size:13px">실시간 로그 / Live log</span><span class="material-symbols-outlined" style="font-size:16px;color:#5d6a7e">terminal</span></div>
+                <div class="mono" style="padding:14px 16px;font-size:11px;line-height:1.9;color:#8792a6;background:#08131f;max-height:190px;overflow:hidden">
+                  <div>[09:00:12] stage1 preprocess OK · canonical SMILES</div>
+                  <div>[09:00:48] stage2 ADMET gate → <span style="color:#f0a83c">FLAG_HIGH</span></div>
+                  <div>[09:01:20] stage3 retrieval · 4,510 scorable targets</div>
+                  <div style="color:#00dbe7">[09:03:41] stage4 AutoDock rerank · top 5% ...</div>
+                </div>
+              </div>
+              <button onClick="{{ finishRun }}" style="{{ runBtnStyle }}"><span class="material-symbols-outlined" style="font-size:18px">{{ runBtnIcon }}</span>{{ runBtnText }}</button>
+              <button onClick="{{ cancelRun }}" style="background:transparent;color:#9aa5b8;border:1px solid rgba(255,255,255,0.14);padding:11px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">실행 취소 / Cancel</button>
+            </div>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ============ RESULTS ============ -->
+        <sc-if value="{{ isResults }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:.16em;color:#00dbe7;text-transform:uppercase;margin-bottom:8px">결과 · Results</div>
+          <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:18px"><h1 style="font-family:'Space Grotesk';font-weight:600;font-size:27px;margin:0;letter-spacing:-.01em">Retinol</h1><span class="mono" style="font-size:12px;color:#5d6a7e">C₂₀H₃₀O · retinol-20260826T09 · FAST</span></div>
+
+          <!-- decision banner -->
+          <div style="border-radius:12px;background:linear-gradient(180deg,rgba(240,168,60,0.10),rgba(240,168,60,0.03));border:1px solid rgba(240,168,60,0.3);padding:20px 22px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+              <span class="material-symbols-outlined" style="font-size:34px;color:#f0a83c">flag</span>
+              <div style="flex:1;min-width:230px">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="mono" style="font-size:19px;font-weight:600;color:#f0a83c">FLAG_HIGH</span><span style="font-size:14px;color:#e6eefb;white-space:nowrap">검토 필요 / Review before claim</span></div>
+                <div style="font-size:13px;color:#d9c3a0;margin-top:3px">주장 가능 여부 <b class="mono" style="white-space:nowrap">claimable = false</b> · 사람의 검토가 끝나기 전에는 과학적 주장을 하지 마세요.</div>
+              </div>
+              <div style="text-align:center;padding:8px 16px;border-radius:8px;background:rgba(0,0,0,0.2);flex-shrink:0"><div class="mono" style="font-size:11px;color:#5d6a7e;white-space:nowrap">역대 PASS</div><div class="mono" style="font-size:20px;color:#e6eefb;white-space:nowrap">0<span style="font-size:12px;color:#5d6a7e">/44</span></div></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-top:16px">
+              <sc-for list="{{ reasons }}" as="r" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;background:rgba(0,0,0,0.16);border-radius:7px;padding:8px 12px"><span style="{{ r.tagStyle }}">{{ r.tag }}</span><span style="color:#e6eefb">{{ r.text }}</span></div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- next action -->
+          <div style="display:flex;gap:10px;background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px 18px;margin-bottom:22px;align-items:center"><span class="material-symbols-outlined" style="color:#00dbe7;font-size:20px">arrow_forward</span><span style="font-size:13.5px">다음 단계 / Next: <b>예측(predicted) 근거의 표적</b>부터 실험 우선순위를 논의하세요. 조회(retrieved)는 이미 알려진 사실입니다.</span></div>
+
+          <!-- metric strip -->
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px">
+            <sc-for list="{{ metrics }}" as="m" hint-placeholder-count="4">
+              <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:14px 16px;border-left:3px solid {{ m.accent }}">
+                <div style="font-size:11px;color:#9aa5b8;display:flex;align-items:center;gap:5px">{{ m.label }}</div>
+                <div style="display:flex;align-items:baseline;gap:7px;margin-top:5px"><span style="font-weight:600;font-size:16px;color:{{ m.accent }}">{{ m.value }}</span><span class="mono" style="font-size:10.5px;color:#5d6a7e">{{ m.token }}</span></div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- tabs -->
+          <div style="display:flex;gap:2px;border-bottom:1px solid rgba(255,255,255,0.09);margin-bottom:18px">
+            <sc-for list="{{ resultTabs }}" as="t" hint-placeholder-count="4"><div onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</div></sc-for>
+          </div>
+
+          <!-- TAB: targets -->
+          <sc-if value="{{ tabTargets }}" hint-placeholder-val="{{ true }}">
+          <div>
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;flex-wrap:wrap">
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:#9aa5b8"><span style="width:10px;height:10px;border-radius:3px;background:#5b8def"></span>조회 retrieved · 알려진 사실</span>
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:#9aa5b8"><span style="width:10px;height:10px;border-radius:3px;background:#00dbe7"></span>예측 predicted · 툴이 외삽</span>
+              <span style="display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:#9aa5b8;margin-left:auto"><span class="material-symbols-outlined" style="font-size:15px;color:#f0a83c">warning</span>유사도 0.6 = 신뢰 경계선</span>
+            </div>
+            <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden">
+              <div style="display:grid;grid-template-columns:46px 1.7fr 84px 96px 96px 92px 56px;gap:8px;padding:11px 16px;border-bottom:1px solid rgba(255,255,255,0.1);font-size:10.5px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.06em;font-weight:600">
+                <span>순위</span><span>유전자 · 단백질</span><span style="text-align:right">종합점수</span><span style="text-align:right">최근접 유사도</span><span style="text-align:center">근거</span><span style="text-align:center">피부 발현</span><span></span>
+              </div>
+              <sc-for list="{{ targets }}" as="t" hint-placeholder-count="8">
+                <div onClick="{{ t.onInspect }}" style="display:grid;grid-template-columns:46px 1.7fr 84px 96px 96px 92px 56px;gap:8px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.045);align-items:center;cursor:pointer;{{ t.rowBg }}">
+                  <span class="mono" style="font-size:14px;color:#e6eefb;font-weight:600">{{ t.rank }}</span>
+                  <span><span style="font-weight:600;font-size:13.5px;color:#e6eefb">{{ t.gene }}</span><span style="display:block;font-size:11.5px;color:#9aa5b8;margin-top:1px">{{ t.protein }}</span></span>
+                  <span class="mono" style="text-align:right;font-size:13.5px;color:#e6eefb">{{ t.score }}</span>
+                  <span style="text-align:right"><span class="mono" style="font-size:13.5px;color:{{ t.simColor }}">{{ t.sim }}</span></span>
+                  <span style="text-align:center"><span style="{{ t.evStyle }}">{{ t.evLabel }}</span></span>
+                  <span style="text-align:center"><span style="{{ t.tierStyle }}">{{ t.tier }}</span></span>
+                  <span style="text-align:right;color:#5d6a7e"><span class="material-symbols-outlined" style="font-size:18px">chevron_right</span></span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:11.5px;color:#5d6a7e;margin-top:10px;line-height:1.6"><b style="color:#9aa5b8">채점 가능 표적 4,510 / 20,204 (22.3%)</b> — 나머지는 참조 리간드가 없어 0점입니다. 0점은 "결합 안 함"이 아니라 "판단 불가"를 뜻합니다.</div>
+          </div>
+          </sc-if>
+
+          <!-- TAB: safety -->
+          <sc-if value="{{ tabSafety }}">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:20px">
+              <div style="font-weight:600;font-size:14px;margin-bottom:14px">안전성 신호 / Safety signals</div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px">피부 감작성 <span class="mono" style="color:#5d6a7e;font-size:11px">sensitization</span></span><span style="display:inline-flex;align-items:center;gap:6px;color:#f0a83c;font-size:13px"><span style="width:8px;height:8px;border-radius:2px;background:#f0a83c"></span>FLAG_HIGH</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px">피부 독성 <span class="mono" style="color:#5d6a7e;font-size:11px">skin toxicity</span></span><span style="display:inline-flex;align-items:center;gap:6px;color:#f0a83c;font-size:13px"><span style="width:8px;height:8px;border-radius:2px;background:#f0a83c"></span>중등도 Moderate</span></div>
+                <div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px">ADMET 위험 <span class="mono" style="color:#5d6a7e;font-size:11px">Skin_Reaction</span></span><span style="display:inline-flex;align-items:center;gap:6px;color:#f0a83c;font-size:13px"><span style="width:8px;height:8px;border-radius:2px;background:#f0a83c"></span>검토 필요</span></div>
+              </div>
+            </div>
+            <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:20px">
+              <div style="font-weight:600;font-size:14px;margin-bottom:14px">적용 범위 / Applicability</div>
+              <p style="font-size:12.5px;color:#9aa5b8;line-height:1.6;margin:0 0 12px">검증 패널 15개 화합물의 실측 범위 안에 있습니다. 범위: 무거운 원자 6–33, 회전 결합 0–9, 분자량 99–459 Da.</p>
+              <div style="display:flex;align-items:center;gap:8px;color:#4ade80;font-size:13px"><span class="material-symbols-outlined" style="font-size:18px">check_circle</span>범위 내 · In domain</div>
+              <div style="margin-top:14px;padding:11px 13px;border-radius:8px;background:rgba(91,141,239,0.08);border:1px solid rgba(91,141,239,0.2);font-size:12px;color:#a9c3f5;line-height:1.55">in silico 결과는 규제 안전성 평가를 대체하지 않습니다. 출시 전 in vitro(DPRA, KeratinoSens 등)와 패치 테스트가 필수입니다.</div>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- TAB: evidence -->
+          <sc-if value="{{ tabEvidence }}">
+          <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:20px">
+            <div style="font-weight:600;font-size:14px;margin-bottom:6px">조회 vs 예측 / Retrieved vs predicted</div>
+            <p style="font-size:12.5px;color:#9aa5b8;line-height:1.6;margin:0 0 16px;max-width:720px">Retinol은 ChEMBL에 등록된 화합물이라 상위 표적 4개는 자기 자신을 찾아온 <b style="color:#5b8def">조회</b>입니다. 진짜 예측은 유사 화합물에서 외삽한 <b style="color:#00dbe7">예측</b> 행입니다. Leave-query-out 평가에서 Retinol→RAR-α는 유사도 0.696, 25위였습니다.</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <div style="border-radius:8px;background:rgba(91,141,239,0.06);border:1px solid rgba(91,141,239,0.2);padding:14px"><div style="font-weight:600;font-size:13px;color:#5b8def;margin-bottom:6px">조회 4건 / Retrieved</div><div style="font-size:12px;color:#9aa5b8;line-height:1.6">RARB · RARA · RARG · RBP4 — 참조 리간드 <span class="mono">CHEMBL38</span>(Retinol 본인), 유사도 ≈ 1.0. 새 정보가 아닙니다.</div></div>
+              <div style="border-radius:8px;background:rgba(0,219,231,0.06);border:1px solid rgba(0,219,231,0.2);padding:14px"><div style="font-weight:600;font-size:13px;color:#00dbe7;margin-bottom:6px">예측 4건 / Predicted</div><div style="font-size:12px;color:#9aa5b8;line-height:1.6">CRABP2(0.61) · ALDH1A1(0.55) · CYP26A1(0.50) · STRA6(0.44) — 여기가 툴이 실제로 일한 부분입니다.</div></div>
+            </div>
+          </div>
+          </sc-if>
+
+          <!-- TAB: provenance -->
+          <sc-if value="{{ tabProv }}">
+          <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:1.4fr 2fr 90px 96px;gap:8px;padding:11px 18px;border-bottom:1px solid rgba(255,255,255,0.1);font-size:10.5px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.06em;font-weight:600"><span>산출물 / Artifact</span><span>경로 / Path</span><span style="text-align:center">유형</span><span style="text-align:center">검증</span></div>
+            <sc-for list="{{ artifacts }}" as="a" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:1.4fr 2fr 90px 96px;gap:8px;padding:12px 18px;border-bottom:1px solid rgba(255,255,255,0.045);align-items:center">
+                <span style="font-size:13px;color:#e6eefb">{{ a.name }}</span>
+                <span class="mono" style="font-size:11px;color:#8fb4ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.path }}</span>
+                <span style="text-align:center"><span class="mono" style="font-size:10.5px;color:#9aa5b8">{{ a.type }}</span></span>
+                <span style="text-align:center"><span style="{{ a.vStyle }}">{{ a.vLabel }}</span></span>
+              </div>
+            </sc-for>
+          </div>
+          </sc-if>
+        </div>
+        </sc-if>
+
+        <!-- ============ EXPLORER ============ -->
+        <sc-if value="{{ isExplore }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:.16em;color:#00dbe7;text-transform:uppercase;margin-bottom:8px">탐색 · Explorer</div>
+          <h1 style="font-family:'Space Grotesk';font-weight:600;font-size:27px;margin:0 0 20px;letter-spacing:-.01em">표적 탐색 & 실행 비교</h1>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+            <div style="display:flex;align-items:center;gap:8px;background:#0e1b2e;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;min-width:230px"><span class="material-symbols-outlined" style="font-size:17px;color:#5d6a7e">database</span><span class="mono" style="font-size:12px">retinol-20260826T09</span><span class="material-symbols-outlined" style="font-size:17px;color:#5d6a7e;margin-left:auto">expand_more</span></div>
+            <div style="display:flex;align-items:center;gap:8px;background:#08131f;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;flex:1;min-width:200px"><span class="material-symbols-outlined" style="font-size:17px;color:#5d6a7e">search</span><input placeholder="유전자·단백질 검색 / Search targets" style="background:transparent;border:0;outline:0;color:#e6eefb;font-family:inherit;font-size:13px;width:100%"/></div>
+            <div style="display:flex;gap:6px">
+              <sc-for list="{{ tierFilters }}" as="f"><span onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</span></sc-for>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;background:#0e1b2e;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;font-size:12px;color:#9aa5b8;cursor:pointer"><span class="material-symbols-outlined" style="font-size:16px">swap_vert</span>종합점수순</div>
+          </div>
+
+          <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden">
+            <div style="display:grid;grid-template-columns:46px 1.6fr 88px 96px 92px 84px 120px 48px;gap:8px;padding:11px 16px;border-bottom:1px solid rgba(255,255,255,0.1);font-size:10.5px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.06em;font-weight:600"><span>순위</span><span>유전자 · 단백질</span><span style="text-align:right">종합점수</span><span style="text-align:right">유사도</span><span style="text-align:center">근거</span><span style="text-align:center">피부</span><span>표적 클래스</span><span></span></div>
+            <sc-for list="{{ targets }}" as="t" hint-placeholder-count="8">
+              <div onClick="{{ t.onInspect }}" style="display:grid;grid-template-columns:46px 1.6fr 88px 96px 92px 84px 120px 48px;gap:8px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,0.045);align-items:center;cursor:pointer;{{ t.rowBg }}">
+                <span class="mono" style="font-size:14px;font-weight:600">{{ t.rank }}</span>
+                <span><span style="font-weight:600;font-size:13.5px">{{ t.gene }}</span><span style="display:block;font-size:11.5px;color:#9aa5b8;margin-top:1px">{{ t.protein }}</span></span>
+                <span class="mono" style="text-align:right;font-size:13.5px">{{ t.score }}</span>
+                <span style="text-align:right"><span class="mono" style="font-size:13.5px;color:{{ t.simColor }}">{{ t.sim }}</span></span>
+                <span style="text-align:center"><span style="{{ t.evStyle }}">{{ t.evLabel }}</span></span>
+                <span style="text-align:center"><span style="{{ t.tierStyle }}">{{ t.tier }}</span></span>
+                <span style="font-size:11.5px;color:#9aa5b8">{{ t.klass }}</span>
+                <span style="text-align:right;color:#5d6a7e"><span class="material-symbols-outlined" style="font-size:18px">chevron_right</span></span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        </sc-if>
+
+        <!-- ============ ENVIRONMENT ============ -->
+        <sc-if value="{{ isEnv }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="font-size:11px;font-weight:600;letter-spacing:.16em;color:#00dbe7;text-transform:uppercase;margin-bottom:8px">환경 · Environment</div>
+          <h1 style="font-family:'Space Grotesk';font-weight:600;font-size:27px;margin:0 0 20px;letter-spacing:-.01em">런타임 & 준비 상태</h1>
+
+          <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;margin-bottom:20px">
+            <div style="padding:13px 18px;border-bottom:1px solid rgba(255,255,255,0.07);font-weight:600;font-size:14px">시스템 확인 / System checks</div>
+            <sc-for list="{{ envRows }}" as="e" hint-placeholder-count="5">
+              <div style="display:grid;grid-template-columns:200px 1fr 130px;gap:14px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.045);align-items:center">
+                <span style="display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600"><span class="material-symbols-outlined" style="font-size:18px;color:#9aa5b8">{{ e.icon }}</span>{{ e.label }}</span>
+                <span style="font-size:12.5px;color:#9aa5b8">{{ e.detail }}</span>
+                <span style="justify-self:end"><span style="{{ e.status }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ e.dot }}"></span>{{ e.statusText }}</span></span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden">
+            <div style="padding:13px 18px;border-bottom:1px solid rgba(255,255,255,0.07);font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px">데이터·모델 준비 / Data & model readiness <span style="font-size:11px;color:#5d6a7e;font-weight:400">— 분석 유형별로 따로 표시</span></div>
+            <sc-for list="{{ readyRows }}" as="r" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:220px 1fr 130px;gap:14px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,0.045);align-items:center">
+                <span style="font-size:13.5px;font-weight:600">{{ r.label }} <span class="mono" style="font-size:10.5px;color:#5d6a7e;font-weight:400">{{ r.token }}</span></span>
+                <span style="font-size:12.5px;color:#9aa5b8">{{ r.detail }}</span>
+                <span style="justify-self:end"><span style="{{ r.status }}"><span style="width:7px;height:7px;border-radius:50%;background:{{ r.dot }}"></span>{{ r.statusText }}</span></span>
+              </div>
+            </sc-for>
+            <div style="padding:13px 18px;font-size:11.5px;color:#5d6a7e;display:flex;align-items:center;gap:8px"><span class="material-symbols-outlined" style="font-size:15px">lock</span>Stage 0(대용량 인프라 빌드)는 초보자 경로에 노출되지 않습니다. 운영자 문서에서 별도로 다룹니다.</div>
+          </div>
+        </div>
+        </sc-if>
+
+      </div>
+
+      <!-- TARGET DETAIL DRAWER -->
+      <sc-if value="{{ drawerOpen }}">
+      <div>
+        <div onClick="{{ closeDrawer }}" style="position:fixed;inset:0;background:rgba(3,8,16,0.55);z-index:40"></div>
+        <div style="position:fixed;top:0;right:0;bottom:0;width:460px;background:#0b1728;border-left:1px solid rgba(255,255,255,0.1);z-index:41;box-shadow:-18px 0 50px rgba(0,0,0,0.4);display:flex;flex-direction:column">
+          <div style="padding:18px 22px;border-bottom:1px solid rgba(255,255,255,0.08);display:flex;align-items:flex-start;justify-content:space-between">
+            <div>
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-family:'Space Grotesk';font-weight:600;font-size:19px">{{ dGene }}</span><span style="{{ dEvStyle }}">{{ dEvLabel }}</span></div>
+              <div style="font-size:12.5px;color:#9aa5b8;margin-top:3px">{{ dProtein }}</div>
+            </div>
+            <span onClick="{{ closeDrawer }}" style="cursor:pointer;color:#9aa5b8;width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.04)"><span class="material-symbols-outlined" style="font-size:18px">close</span></span>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:22px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+              <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:14px"><div style="font-size:10.5px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.06em">종합 예측 점수</div><div class="mono" style="font-size:22px;margin-top:4px">{{ dScore }}</div></div>
+              <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:14px"><div style="font-size:10.5px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.06em">최근접 유사도</div><div class="mono" style="font-size:22px;margin-top:4px;color:{{ dSimColor }}">{{ dSim }}</div></div>
+            </div>
+
+            <div style="margin-bottom:20px;padding:13px 15px;border-radius:8px;background:rgba(240,168,60,0.06);border:1px solid rgba(240,168,60,0.18)">
+              <div style="display:flex;gap:8px"><span class="material-symbols-outlined" style="font-size:16px;color:#f0a83c;flex-shrink:0">info</span><span style="font-size:12px;color:#d9c3a0;line-height:1.55"><b>Docking RRF 컬럼에 속지 마세요.</b> Daina 경로에서 이 값은 종합 예측 점수의 복사본이며 실제 도킹 정보가 없습니다.</span></div>
+            </div>
+
+            <div style="font-size:11px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">근거 / Evidence</div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:22px">
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#9aa5b8">참조 리간드</span><span class="mono">{{ dRef }}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#9aa5b8">근거 유형</span><span>{{ dEvText }}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#9aa5b8">피부 발현(HPA)</span><span>{{ dTierText }}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#9aa5b8">근거 수 / Source count</span><span class="mono">{{ dSources }}</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#9aa5b8">효능 라벨</span><span>{{ dEfficacy }}</span></div>
+            </div>
+
+            <sc-if value="{{ dHasLimit }}">
+            <div style="margin-bottom:22px;padding:13px 15px;border-radius:8px;background:rgba(178,58,58,0.08);border:1px solid rgba(178,58,58,0.25)">
+              <div style="display:flex;gap:8px"><span class="material-symbols-outlined" style="font-size:16px;color:#ff8080;flex-shrink:0">error</span><span style="font-size:12px;color:#f0b3b3;line-height:1.55">{{ dLimit }}</span></div>
+            </div>
+            </sc-if>
+
+            <div style="font-size:11px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">제안 실험 / Suggested readout</div>
+            <div style="background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:14px;font-size:13px;margin-bottom:22px;display:flex;align-items:center;gap:10px"><span class="material-symbols-outlined" style="font-size:18px;color:#00dbe7">science</span>{{ dReadout }}<span style="font-size:11px;color:#5d6a7e;margin-left:auto">논의 시작점</span></div>
+
+            <div style="font-size:11px;color:#5d6a7e;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">산출물 / Artifacts</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <a href="#" style="display:flex;align-items:center;gap:9px;font-size:12.5px;padding:9px 12px;border-radius:7px;background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);text-decoration:none;color:#8fb4ff"><span class="material-symbols-outlined" style="font-size:16px">description</span>target_ranking.csv<span style="margin-left:auto;color:#5d6a7e" class="material-symbols-outlined">download</span></a>
+              <a href="#" style="display:flex;align-items:center;gap:9px;font-size:12.5px;padding:9px 12px;border-radius:7px;background:#0e1b2e;border:1px solid rgba(255,255,255,0.07);text-decoration:none;color:#8fb4ff"><span class="material-symbols-outlined" style="font-size:16px">view_in_ar</span>Mol* 상호작용 뷰<span style="margin-left:auto;color:#5d6a7e" class="material-symbols-outlined">open_in_new</span></a>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:820},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;setup&quot;,&quot;new&quot;,&quot;run&quot;,&quot;results&quot;,&quot;explore&quot;,&quot;env&quot;],&quot;default&quot;:&quot;new&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;showEnglish&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Prototype&quot;},&quot;runState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;running&quot;,&quot;complete&quot;],&quot;default&quot;:&quot;running&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Prototype&quot;}}">
+class Component extends DCLogic {
+  state = {};
+  get screen(){ return this.state.screen ?? (this.props.startScreen || 'new'); }
+  get runDone(){ return this.state.runDone ?? ((this.props.runState||'running')==='complete'); }
+
+  pill(bg,color,extra){ return `display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;background:${bg};color:${color};${extra||''}`; }
+
+  baseTargets(){
+    return [
+      {rank:1,gene:'RARB',protein:'Retinoic acid receptor β',score:'1.000',sim:'1.000',ev:'retrieved',tier:'High',sources:8,klass:'핵수용체 / NR',ref:'CHEMBL38 · 자기 자신',efficacy:'작용제 Agonist (문헌)',readout:'리포터 assay / Reporter assay',limit:''},
+      {rank:2,gene:'RARA',protein:'Retinoic acid receptor α',score:'1.000',sim:'1.000',ev:'retrieved',tier:'High',sources:7,klass:'핵수용체 / NR',ref:'CHEMBL38 · 자기 자신',efficacy:'작용제 Agonist (문헌)',readout:'리포터 assay / Reporter assay',limit:''},
+      {rank:3,gene:'RARG',protein:'Retinoic acid receptor γ',score:'0.998',sim:'0.998',ev:'retrieved',tier:'Medium',sources:5,klass:'핵수용체 / NR',ref:'CHEMBL38 · 자기 자신',efficacy:'작용제 Agonist (문헌)',readout:'리포터 assay / Reporter assay',limit:''},
+      {rank:4,gene:'RBP4',protein:'Retinol-binding protein 4',score:'0.842',sim:'0.842',ev:'retrieved',tier:'Medium',sources:4,klass:'결합단백질 / BP',ref:'CHEMBL38 · 자기 자신',efficacy:'결합 Binder (문헌)',readout:'결합 assay / Binding assay',limit:''},
+      {rank:5,gene:'CRABP2',protein:'Cellular retinoic acid-binding protein 2',score:'0.612',sim:'0.612',ev:'predicted',tier:'Medium',sources:3,klass:'결합단백질 / BP',ref:'CHEMBL42637 · Tanimoto 0.612',efficacy:'예측 결합',readout:'결합 assay / Binding assay',limit:''},
+      {rank:6,gene:'ALDH1A1',protein:'Retinal dehydrogenase 1',score:'0.548',sim:'0.548',ev:'predicted',tier:'Low',sources:2,klass:'효소 / Enzyme',ref:'CHEMBL1200539 · Tanimoto 0.548',efficacy:'예측 기질',readout:'정제 단백질 활성 assay',limit:'NAD⁺ 보조인자가 구조에 모델링되지 않았을 수 있습니다. 낮은 도킹 점수를 결합 약함의 근거로 쓰지 마세요.'},
+      {rank:7,gene:'CYP26A1',protein:'Cytochrome P450 26A1',score:'0.503',sim:'0.503',ev:'predicted',tier:'Medium',sources:2,klass:'효소 / Enzyme',ref:'CHEMBL5301 · Tanimoto 0.503',efficacy:'예측 기질',readout:'정제 단백질 활성 assay',limit:''},
+      {rank:8,gene:'STRA6',protein:'Receptor STRA6',score:'0.441',sim:'0.441',ev:'predicted',tier:'Low',sources:1,klass:'수용체 / Receptor',ref:'CHEMBL38 · Tanimoto 0.441',efficacy:'예측 상호작용',readout:'세포 기반 uptake assay',limit:'유사도 0.441로 신뢰 경계선(0.6) 아래입니다. 개별 결과를 유사도만으로 판정하지 마세요.'}
+    ];
+  }
+
+  renderVals(){
+    const s = this.screen;
+    const set = (v)=>()=>this.setState({screen:v});
+    const setState=(o)=>this.setState(o);
+    const teal='#00dbe7', ink='#e6eefb', ink2='#9aa5b8', ink3='#5d6a7e';
+
+    // NAV
+    const navDef=[
+      {id:'setup',ko:'시작하기',en:'Setup',icon:'rocket_launch'},
+      {id:'new',ko:'새 분석',en:'New analysis',icon:'science'},
+      {id:'run',ko:'실행 중',en:'Run monitor',icon:'monitoring',badge:this.runDone?null:'1'},
+      {id:'results',ko:'결과',en:'Results',icon:'assignment'},
+      {id:'explore',ko:'탐색',en:'Explorer',icon:'travel_explore'},
+      {id:'env',ko:'환경',en:'Environment',icon:'tune'}
+    ];
+    const navItems=navDef.map(n=>{
+      const active=s===n.id;
+      return {...n,
+        active,
+        onClick:set(n.id),
+        style:`display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;cursor:pointer;position:relative;${active?'background:rgba(0,219,231,0.10);':''}`,
+        iconStyle:`font-size:19px;color:${active?teal:ink3}`,
+        badgeStyle:active?this.pill('rgba(0,219,231,0.2)',teal,'padding:1px 7px'):this.pill('rgba(240,168,60,0.15)','#f0a83c','padding:1px 7px')
+      };
+    });
+
+    // SETUP steps
+    const setupSteps=[
+      {ko:'환경 확인',en:'Detect system',done:true,line:true},
+      {ko:'기본 프로그램 설치',en:'Install basics',done:true,line:true},
+      {ko:'런타임 부트스트랩',en:'Bootstrap runtime',done:true,line:true},
+      {ko:'데이터·모델 준비',en:'Data & model',current:true,line:false}
+    ].map((x,i,arr)=>{
+      const done=x.done, cur=x.current;
+      return {...x,
+        mark:done?'✓':String(i+1),
+        dot:`width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;${done?'background:#0b6b62;color:#fff':cur?'background:rgba(0,219,231,0.14);color:'+teal+';border:1.5px solid '+teal:'background:#0e1b2e;color:'+ink3}`,
+        lineColor:done?'#0b6b62':'rgba(255,255,255,0.08)',
+        textColor:cur?ink:done?ink:ink3
+      };
+    });
+
+    // NEW ANALYSIS
+    const im=this.state.im||'smiles';
+    const q=this.state.q||'target-id';
+    const dp=this.state.dp||'fast';
+    const tabBtn=(on)=>`padding:7px 14px;border-radius:6px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;${on?'background:#122335;color:'+ink:'color:'+ink2}`;
+    const questionsDef=[
+      {id:'safety',ko:'안전성 · 피부 반응 먼저 보기',desc:'피부 자극·감작성만 먼저 빠르게 봅니다',token:'safety'},
+      {id:'target-id',ko:'가능한 단백질 표적 찾기',desc:'비슷한 분자를 근거로 표적 순위를 예측합니다',token:'target-id'},
+      {id:'report',ko:'전체 근거 보고서 만들기',desc:'안전성·표적·근거·출처를 한 보고서로 묶습니다',token:'report'}
+    ].map(x=>{const on=q===x.id;return{...x,active:on,onClick:()=>setState({q:x.id}),
+      style:`display:flex;gap:12px;padding:13px 14px;border-radius:8px;cursor:pointer;border:1px solid ${on?'rgba(0,219,231,0.4)':'rgba(255,255,255,0.07)'};background:${on?'rgba(0,219,231,0.05)':'#08131f'}`,
+      radio:`width:18px;height:18px;border-radius:50%;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;border:1.5px solid ${on?teal:'rgba(255,255,255,0.25)'}`}; });
+    const depthsDef=[
+      {id:'fast',ko:'빠른 분석',desc:'PSICHIC + Daina 유사도 → 소규모 도킹',est:'≈ 5–10분'},
+      {id:'comprehensive',ko:'종합 분석',desc:'AutoDock 전수 → 4-way RRF',est:'≈ 12–24시간'},
+      {id:'both',ko:'둘 다',desc:'두 방식의 차이까지 함께 봅니다',est:'가장 김'}
+    ].map(x=>{const on=dp===x.id;return{...x,onClick:()=>setState({dp:x.id}),
+      style:`flex:1;padding:13px 14px;border-radius:8px;cursor:pointer;border:1px solid ${on?'rgba(0,219,231,0.4)':'rgba(255,255,255,0.07)'};background:${on?'rgba(0,219,231,0.05)':'#08131f'}`}; });
+    const exDef=[{name:'Retinol',on:true},{name:'Caffeine'},{name:'Salicylic acid'}];
+    const examples=exDef.map(x=>({name:x.name,onClick:()=>{},style:`padding:4px 11px;border-radius:20px;font-size:11.5px;cursor:pointer;white-space:nowrap;border:1px solid ${x.on?'rgba(0,219,231,0.35)':'rgba(255,255,255,0.1)'};color:${x.on?teal:ink2};background:${x.on?'rgba(0,219,231,0.06)':'transparent'}`}));
+    const qMap={safety:'안전성 safety','target-id':'표적 target-id',report:'보고서 report'};
+    const dMap={fast:'빠른 FAST',comprehensive:'종합 COMPREHENSIVE',both:'둘 다 BOTH'};
+    const estMap={fast:'≈ 5–10분',comprehensive:'≈ 12–24시간',both:'가장 김'};
+
+    // RUN monitor
+    const done=this.runDone;
+    const rs=(status)=>{ // returns visual props
+      if(status==='done')return{dot:`width:26px;height:26px;border-radius:50%;background:#0b6b62;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px`,mark:'✓',railColor:'#0b6b62',textColor:ink,noteColor:ink2};
+      if(status==='run')return{dot:`width:26px;height:26px;border-radius:50%;background:rgba(0,219,231,0.15);border:2px solid ${teal};color:${teal};display:flex;align-items:center;justify-content:center`,mark:'•',railColor:'rgba(255,255,255,0.08)',textColor:ink,noteColor:teal};
+      return{dot:`width:26px;height:26px;border-radius:50%;background:#0e1b2e;border:1.5px solid rgba(255,255,255,0.12);color:${ink3};display:flex;align-items:center;justify-content:center;font-size:12px`,mark:'',railColor:'rgba(255,255,255,0.08)',textColor:ink3,noteColor:ink3};
+    };
+    const stagesRaw=[
+      {ko:'전처리',en:'preprocess',st:'done',time:'0:12',note:'Canonical SMILES 확인'},
+      {ko:'안전성 게이트',en:'ADMET gate',st:'done',time:'0:48',note:'결과: FLAG_HIGH',noteC:'#f0a83c'},
+      {ko:'리간드 유사도 조회',en:'PSICHIC + Daina',st:'done',time:'2:53',note:'채점 가능 표적 4,510개'},
+      {ko:'도킹 재순위',en:'AutoDock rerank',st:done?'done':'run',time:done?'6:20':'진행 중',note:done?'top 5% → 재순위 완료':'top 5% 도킹 중...'},
+      {ko:'구조 오버레이',en:'Structural overlay',st:done?'done':'pending',time:done?'6:41':'',note:''},
+      {ko:'보고서 생성',en:'Mol* report',st:done?'done':'pending',time:done?'6:58':'',note:''}
+    ];
+    const runStagesFixed=stagesRaw.map((x,i)=>{const v=rs(x.st);return{ko:x.ko,en:x.en,note:x.note,noteColor:x.noteC||v.noteColor,dot:v.dot,mark:x.st==='done'?'✓':(x.st==='run'?'•':String(i+1)),textColor:v.textColor,rail:i<stagesRaw.length-1,railColor:v.railColor,divider:i<stagesRaw.length-1?'rgba(255,255,255,0.045)':'transparent',timeTag:x.time};});
+
+    // RESULTS
+    const tab=this.state.tab||'targets';
+    const resultTabs=[['targets','표적 순위'],['safety','안전성'],['evidence','근거'],['prov','출처·산출물']].map(([id,label])=>{const on=tab===id;return{label,onClick:()=>setState({tab:id}),style:`padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;color:${on?teal:ink2};border-bottom:2px solid ${on?teal:'transparent'};margin-bottom:-1px`};});
+    const reasons=[
+      {tag:'장부 Ledger',safety:false,text:'상위 결합 표적에 직접적인 피부 맥락 근거가 없음'},
+      {tag:'안전성 Safety',safety:true,text:'피부 감작성 합의 결과가 FLAG_HIGH'},
+      {tag:'안전성 Safety',safety:true,text:'피부 반응 ADMET 위험: 중등도 검토 필요'}
+    ].map(r=>({...r,tagStyle:this.pill(r.safety?'rgba(178,58,58,0.18)':'rgba(91,141,239,0.18)',r.safety?'#ff9b9b':'#a9c3f5','padding:2px 9px;flex-shrink:0')}));
+    const metrics=[
+      {label:'피부 감작성',value:'FLAG_HIGH',token:'sensitization',accent:'#f0a83c'},
+      {label:'피부 독성',value:'중등도',token:'moderate',accent:'#f0a83c'},
+      {label:'적용 범위',value:'범위 내',token:'in-domain',accent:'#4ade80'},
+      {label:'이미 알려진 표적',value:'4',token:'self-retrieved',accent:'#5b8def'}
+    ];
+    const artifacts=[
+      {name:'run_summary.json',path:'results/runs/retinol-20260826T09/run_summary.json',type:'authoritative',v:true},
+      {name:'run_verification.json',path:'results/runs/retinol-20260826T09/run_verification.json',type:'authoritative',v:true},
+      {name:'target_ranking.csv',path:'.../stage3/target_ranking.csv',type:'exploratory',v:false},
+      {name:'structural_overlay.tsv',path:'.../stage3_daina_structural_overlay.tsv',type:'exploratory',v:false},
+      {name:'report.html',path:'.../stage9/molstar_report.html',type:'report',v:true}
+    ].map(a=>({...a,vStyle:this.pill(a.v?'rgba(74,222,128,0.14)':'rgba(255,255,255,0.06)',a.v?'#4ade80':ink3,'padding:2px 9px'),vLabel:a.v?'검증됨':'미검증'}));
+
+    // TARGETS (shared)
+    const simColor=(v)=>{const n=parseFloat(v);return n>=0.6?ink:(n>=0.4?'#f0a83c':'#ff8080');};
+    const evStyle=(ev)=>this.pill(ev==='retrieved'?'rgba(91,141,239,0.16)':'rgba(0,219,231,0.14)',ev==='retrieved'?'#8fb4ff':teal,'padding:2px 9px');
+    const tierStyle=(t)=>{const c=t==='High'?'#4ade80':(t==='Medium'?'#f0a83c':ink3);return this.pill('rgba(255,255,255,0.05)',c,'padding:2px 9px');};
+    const drawerId=this.state.drawerId;
+    const targets=this.baseTargets().map(t=>({
+      rank:t.rank,gene:t.gene,protein:t.protein,score:t.score,sim:t.sim,klass:t.klass,
+      simColor:simColor(t.sim),
+      evLabel:t.ev==='retrieved'?'조회':'예측',evStyle:evStyle(t.ev),
+      tier:t.tier,tierStyle:tierStyle(t.tier),
+      rowBg:drawerId===t.gene?'background:rgba(0,219,231,0.05)':'',
+      onInspect:()=>setState({drawerId:t.gene})
+    }));
+    const dObj=this.baseTargets().find(t=>t.gene===drawerId)||null;
+
+    // EXPLORER filters
+    const tf=this.state.tf||'all';
+    const tierFilters=[['all','전체'],['High','High'],['Medium','Medium'],['Low','Low']].map(([id,label])=>{const on=tf===id;return{label,onClick:()=>setState({tf:id}),style:`padding:7px 12px;border-radius:8px;font-size:12px;cursor:pointer;border:1px solid ${on?'rgba(0,219,231,0.35)':'rgba(255,255,255,0.1)'};color:${on?teal:ink2};background:${on?'rgba(0,219,231,0.06)':'#0e1b2e'}`};});
+
+    // ENV
+    const okPill=this.pill('rgba(74,222,128,0.12)','#4ade80','padding:4px 10px');
+    const warnPill=this.pill('rgba(240,168,60,0.12)','#f0a83c','padding:4px 10px');
+    const envRows=[
+      {icon:'computer',label:'운영체제 / OS',detail:'Ubuntu 22.04 LTS · Desktop',ok:true,statusText:'준비됨'},
+      {icon:'terminal',label:'런타임 / Runtime',detail:'micromamba + base env · loopback 바인딩',ok:true,statusText:'준비됨'},
+      {icon:'memory',label:'GPU',detail:'NVIDIA 12 GB · pocket 크롭(±20Å) 활성',ok:true,statusText:'준비됨'},
+      {icon:'storage',label:'디스크 / Disk',detail:'512 GB free',ok:true,statusText:'준비됨'},
+      {icon:'folder',label:'저장소 / Repository',detail:'SkinScout @ f473465',ok:true,statusText:'준비됨'}
+    ].map(e=>({...e,status:e.ok?okPill:warnPill,dot:e.ok?'#4ade80':'#f0a83c'}));
+    const readyRows=[
+      {label:'안전성 분석',token:'safety',detail:'ADMET 게이트 · 피부 감작성 모델',ok:true,statusText:'준비됨'},
+      {label:'빠른 표적',token:'fast',detail:'PSICHIC + Daina 유사도 인덱스',ok:true,statusText:'준비됨'},
+      {label:'종합 표적',token:'comprehensive',detail:'Stage 0 인프라 빌드 82% 진행 중',ok:false,statusText:'부분'},
+      {label:'보고서',token:'report',detail:'Mol* HTML 생성기',ok:true,statusText:'준비됨'}
+    ].map(r=>({...r,status:r.ok?okPill:warnPill,dot:r.ok?'#4ade80':'#f0a83c'}));
+
+    return {
+      showEn: this.props.showEnglish ?? true,
+      navItems,
+      isSetup:s==='setup',isNew:s==='new',isRun:s==='run',isResults:s==='results',isExplore:s==='explore',isEnv:s==='env',
+      goNew:set('new'),
+      // setup
+      setupSteps,
+      // new
+      isSmiles:im==='smiles',isSdf:im==='sdf',
+      smilesTabStyle:tabBtn(im==='smiles'),sdfTabStyle:tabBtn(im==='sdf'),
+      pickSmiles:()=>setState({im:'smiles'}),pickSdf:()=>setState({im:'sdf'}),
+      smilesValue:'OC/C=C(C)/C=C/C=C(C)/C=C/C1=C(C)CCCC1(C)C',
+      examples,questions:questionsDef,depths:depthsDef,
+      reviewQ:qMap[q],reviewD:dMap[dp],reviewEst:estMap[dp],
+      submitRun:()=>this.setState({screen:'run',runDone:false}),
+      // run
+      runTitle:done?'분석 완료':'분석 진행 중',
+      runStatusText:done?'COMPLETED':'RUNNING',
+      runStatusStyle:done?this.pill('rgba(74,222,128,0.12)','#4ade80','padding:5px 12px;font-size:12px'):this.pill('rgba(0,219,231,0.12)',teal,'padding:5px 12px;font-size:12px'),
+      runElapsed:done?'06:58':'03:41',
+      runStages:runStagesFixed,
+      finishRun:()=>this.setState({runDone:true}),
+      runBtnStyle:done?`background:#00dbe7;color:#06101e;border:0;padding:13px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px`:`background:rgba(255,255,255,0.06);color:${ink2};border:1px solid rgba(255,255,255,0.12);padding:13px;border-radius:8px;font-size:13.5px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px`,
+      runBtnIcon:done?'arrow_forward':'fast_forward',
+      runBtnText:done?'결과 보기 / View results →':'완료까지 시뮬레이션 (데모)',
+      cancelRun:set('new'),
+      // results
+      resultTabs,tabTargets:tab==='targets',tabSafety:tab==='safety',tabEvidence:tab==='evidence',tabProv:tab==='prov',
+      reasons,metrics,artifacts,targets,
+      // explorer
+      tierFilters,
+      // drawer
+      drawerOpen:!!dObj,closeDrawer:()=>setState({drawerId:null}),
+      dGene:dObj?dObj.gene:'',dProtein:dObj?dObj.protein:'',dScore:dObj?dObj.score:'',dSim:dObj?dObj.sim:'',dSimColor:dObj?simColor(dObj.sim):ink,
+      dEvLabel:dObj?(dObj.ev==='retrieved'?'조회 retrieved':'예측 predicted'):'',dEvStyle:dObj?evStyle(dObj.ev):'',
+      dEvText:dObj?(dObj.ev==='retrieved'?'조회 — 이미 알려진 사실':'예측 — 유사 화합물에서 외삽'):'',
+      dRef:dObj?dObj.ref:'',dTierText:dObj?dObj.tier+' tier':'',dSources:dObj?String(dObj.sources):'',dEfficacy:dObj?dObj.efficacy:'',
+      dReadout:dObj?dObj.readout:'',dHasLimit:!!(dObj&&dObj.limit),dLimit:dObj?dObj.limit:'',
+      // env
+      envRows,readyRows
+    };
+  }
+}
+</script>
+</body>
+</html>

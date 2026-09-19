@@ -1,0 +1,11 @@
+inci_name,common_name,smiles,inchikey_connectivity,source
+Benzophenone-3,oxybenzone,COc1ccc(C(=O)c2ccccc2)c(O)c1,DXGLGDHPHMLXJC,INSTRUCTIONS.md §15
+Butyl Methoxydibenzoylmethane,avobenzone,COc1ccc(C(=O)CC(=O)c2ccc(C(C)(C)C)cc2)cc1,XNEFYCZVKIDDMS,INSTRUCTIONS.md §15
+Ethylhexyl Methoxycinnamate,octinoxate,CCCCC(CC)COC(=O)/C=C/c1ccc(OC)cc1,YBGZDTIWKVFICR,INSTRUCTIONS.md §15
+Octocrylene,octocrylene,CCCCC(CC)COC(=O)C(=C(c1ccccc1)c1ccccc1)C#N,FMJSMJQBSVNSBF,INSTRUCTIONS.md §15
+Homosalate,homosalate,CC1CC(C)(C)CC(OC(=O)c2ccccc2O)C1,WSSJONWNBBTCMG,INSTRUCTIONS.md §15
+Ethylhexyl Salicylate,octisalate,CCCCC(CC)COC(=O)c1ccccc1O,FMRHJJZUHUTGKE,INSTRUCTIONS.md §15
+Phenylbenzimidazole Sulfonic Acid,ensulizole,O=S(=O)(O)c1ccc2[nH]c(-c3ccccc3)nc2c1,UVCJGUGAGLDPAA,INSTRUCTIONS.md §15
+Ethylhexyl Dimethyl PABA,padimate O,CCCCC(CC)COC(=O)c1ccc(N(C)C)cc1,WYWZRNAHINYAEF,INSTRUCTIONS.md §15
+4-Methylbenzylidene Camphor,enzacamene,CC1(C)C2CCC1(C)C(=O)C2=Cc1ccc(C)cc1,HEOCBCNFKCOKBX,INSTRUCTIONS.md §15
+Benzophenone-4,sulisobenzone,COc1cc(O)c(C(=O)c2ccccc2)cc1S(=O)(=O)O,CXVGEDCSTKKODG,INSTRUCTIONS.md §15

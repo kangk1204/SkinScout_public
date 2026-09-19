@@ -1,0 +1,58 @@
+name: delivery-contracts
+
+# The snapshot script and the README are delivery surfaces, so their contracts
+# run on every push. These three files are chosen because they need no Stage 0
+# data: they pass on a fresh clone (integration cases skip themselves).
+on:
+  push:
+  pull_request:
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --quiet pytest pyyaml pandas
+      - run: >
+          python -m pytest
+          scripts/tests/test_public_snapshot.py
+          scripts/tests/test_readme_delivery.py
+          scripts/tests/test_explore_target.py
+          -q
+
+  # Audit F48: the delivery job above runs three modules and its green is not
+  # scientific or Workbench coverage. This job runs the dependency-light
+  # contract counterexamples added during the audit series - ChEMBL dtype,
+  # qualification/claim state, identity split, band-rerank input validation,
+  # pocket-audit schemas plus the public/README guards. No GPU, no network, and
+  # no rdkit/biopython/torch: those modules stay in their own local suites, so
+  # this job does not claim to cover them.
+  core-contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --quiet pytest pyyaml pandas pyarrow
+      - run: >
+          python -m pytest
+          scripts/tests/test_public_snapshot.py
+          scripts/tests/test_readme_delivery.py
+          scripts/tests/test_explore_target.py
+          scripts/tests/test_qualification_manifest.py
+          scripts/tests/test_qualification_outputs.py
+          scripts/tests/test_coordinator_sealing.py
+          scripts/tests/test_analog_bundle.py
+          scripts/tests/test_stage3_band_rerank.py
+          scripts/tests/test_build_chembl_activity_evidence.py
+          scripts/tests/test_build_evidence_splits.py
+          scripts/tests/test_pocket_cold_identity_regressions.py
+          scripts/tests/test_audit_pocket_leakage.py
+          scripts/tests/test_pocket_audit_schema.py
+          scripts/tests/test_audit_rcsb_contact_pocket_leakage.py
+          scripts/tests/test_build_screenable_target_cluster_map.py
+          -q

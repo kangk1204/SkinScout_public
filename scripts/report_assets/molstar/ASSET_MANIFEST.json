@@ -1,0 +1,12 @@
+{
+  "license": "MIT",
+  "package": "molstar",
+  "package_tarball_sha512": "26fda81e42a80a9ceb86a2e61a59277a99b4a5f46ca130de6ec19192f5e96d415bea9f892009212f2337baa576b700ba551f3765b5ed76cc0eb68b8f868ce9b9",
+  "package_url": "https://registry.npmjs.org/molstar/-/molstar-5.11.0.tgz",
+  "version": "5.11.0",
+  "files": {
+    "LICENSE": "eabd1831ed605a29cf9d7e60221c019c1bc026add81e3c0686ce5f24b3d4d500",
+    "molstar.css": "5b68ceb6d3642549b4e9b2c071e58e41b98a5350ae269180587b39da86925d55",
+    "molstar.js": "7fad5561c74bc900930fb57d6ab028d1aafdda82223a901bf932b1098e84f1f3"
+  }
+}
